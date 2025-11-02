@@ -20,13 +20,15 @@ import java.time.LocalDateTime;
 @Route(value = "entregas", layout = MainLayout.class)
 public class EntregasView extends VerticalLayout {
 
-    private final EntregaService servicio = new EntregaService();
+    private final EntregaService servicio; // <-- 1. Quitar el "new EntregaService()"
     private final NotificacionService notificacionService = new NotificacionService();
     private final Grid<Entrega> grid = new Grid<>(Entrega.class);
 
-    public EntregasView() {
-        setPadding(true);
-        setSpacing(true);
+    // 2. Pedir el servicio en el constructor (Spring lo inyectará)
+    public EntregasView(EntregaService servicio) {
+        this.servicio = servicio; // 3. Asignarlo
+
+        setPadding(true);        setSpacing(true);
         add(new H2("Gestión de Entregas"));
 
         MemoryBuffer buffer = new MemoryBuffer();
@@ -64,5 +66,6 @@ public class EntregasView extends VerticalLayout {
         });
 
         add(upload, eliminar, grid);
+        grid.setItems(servicio.listarEntregas());
     }
 }
