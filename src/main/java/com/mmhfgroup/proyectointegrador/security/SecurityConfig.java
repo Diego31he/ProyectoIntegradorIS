@@ -69,15 +69,16 @@ public class SecurityConfig extends VaadinWebSecurity {
 
             List<GrantedAuthority> authorities = new ArrayList<>();
 
-            // 1. Todos los usuarios logueados son, como mínimo, "ESTUDIANTE"
-            //    (O ajusta esto si tienes usuarios que NO son estudiantes)
-            authorities.add(new SimpleGrantedAuthority("ROLE_ESTUDIANTE"));
-
-            if (usuario instanceof Catedra) {
-                // 2. Si es Cátedra, AÑADE el rol CATEDRA
+            // ROL BASE: Estudiante
+            if (usuario instanceof Estudiante) {
+                authorities.add(new SimpleGrantedAuthority("ROLE_ESTUDIANTE"));
+            }
+            // ROL SUPERIOR: Cátedra (que también es Estudiante)
+            else if (usuario instanceof Catedra) {
+                authorities.add(new SimpleGrantedAuthority("ROLE_ESTUDIANTE"));
                 authorities.add(new SimpleGrantedAuthority("ROLE_CATEDRA"));
 
-                // 3. Si además es Admin, AÑADE el rol ADMIN
+                // ROL MÁXIMO: Admin (que es Cátedra y Estudiante)
                 if (((Catedra) usuario).isAdmin()) {
                     authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
                 }

@@ -44,8 +44,16 @@ public class SecurityService {
      * Comprueba si el usuario actual es ROLE_CATEDRA.
      */
     public boolean isUserCatedra() {
-        // Un admin también cuenta como cátedra
-        return hasRole("ROLE_CATEDRA") || hasRole("ROLE_ADMIN");
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return false;
+        }
+        for (GrantedAuthority authority : authentication.getAuthorities()) {
+            if (authority.getAuthority().equals("ROLE_CATEDRA")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

@@ -22,9 +22,10 @@ import com.vaadin.flow.router.RouterLink;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 import jakarta.annotation.security.RolesAllowed;
 import org.springframework.beans.factory.annotation.Autowired;
+import com.mmhfgroup.proyectointegrador.view.MainView;
 
 // <-- Cátedra Y Admin pueden ver esto
-@RolesAllowed({"ROLE_CATEDRA", "ROLE_ADMIN"})
+@RolesAllowed({"ROLE_CATEDRA"})
 public class CatedraLayout extends AppLayout {
 
     private final SecurityService securityService;
@@ -79,34 +80,25 @@ public class CatedraLayout extends AppLayout {
     private void createDrawer() {
         VerticalLayout menu = new VerticalLayout();
         menu.addClassNames(LumoUtility.Padding.MEDIUM);
-        menu.setSizeFull();
 
-        // --- Links de Navegación de CÁTEDRA ---
-        VerticalLayout navLinks = new VerticalLayout(
-                new RouterLink("Gestión de Equipos", EquiposView.class),
-                new RouterLink("Calendario General", CalendarioView.class),
-                new RouterLink("Foro", ForoView.class)
-                // (Aquí irán más vistas de cátedra, como "Crear Secciones")
+        menu.add(
+                new RouterLink("Equipos", EquiposView.class),
+                new RouterLink("Entregas (Cátedra)", EntregasView.class),
+                new RouterLink("Calendario", CalendarioView.class),
+                new RouterLink("Foro", ForoView.class),
+                new RouterLink("Notificaciones", NotificacionesView.class)
         );
 
-        // --- LÓGICA CONDICIONAL DE ADMIN ---
-        // El Docente (Cátedra) puede ser Admin. Si lo es, muestra este link
-        if (securityService.isUserAdmin()) {
-            RouterLink adminLink = new RouterLink("Panel de Admin", AdminDashboardView.class);
-            adminLink.getStyle().set("color", "var(--lumo-primary-color)");
-            navLinks.add(adminLink);
-        }
+        // --- AÑADIR ESTO ---
+        menu.add(LumoUtility.Margin.Top.LARGE); // Un espacio
 
-        navLinks.setPadding(false);
-        navLinks.setSpacing(false);
+        RouterLink vistaEstudiante = new RouterLink();
+        vistaEstudiante.add(new Icon(VaadinIcon.EYE), new Span("Ver como Estudiante"));
+        vistaEstudiante.setRoute(MainView.class);
 
-        Div spacer = new Div();
-        spacer.getStyle().set("flex-grow", "1");
+        menu.add(vistaEstudiante);
+        // --- FIN DE LO AÑADIDO ---
 
-        // ... (Tu código del "Details" de "Nosotros" se queda igual) ...
-        Details nosotrosDetails = createNosotrosDetails(); // <-- Mover a método auxiliar
-
-        menu.add(navLinks, spacer, nosotrosDetails);
         addToDrawer(menu);
     }
 
