@@ -11,7 +11,6 @@ import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
-import com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextArea;
@@ -24,7 +23,7 @@ import java.util.Arrays;
 import java.util.List;
 
 @PageTitle("Foro de Consultas")
-@Route(value = "foro", layout = MainLayout.class)
+@Route(value = "foro", layout = EstudianteLayout.class)
 public class ForoView extends HorizontalLayout {
 
     private final ForoService servicio = new ForoService();

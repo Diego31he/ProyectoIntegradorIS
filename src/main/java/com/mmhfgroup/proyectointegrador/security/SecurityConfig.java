@@ -17,6 +17,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,11 +38,28 @@ public class SecurityConfig extends VaadinWebSecurity {
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
-        // Redirige a la vista de Login que crearemos
-        super.configure(http);
-        setLoginView(http, LoginView.class);
-    }
 
+        // Permite acceso público a imágenes y favicons (necesario)
+        http.authorizeHttpRequests(auth -> auth
+                .requestMatchers(new AntPathRequestMatcher("/images/**")).permitAll()
+                .requestMatchers(new AntPathRequestMatcher("/icons/**")).permitAll()
+        );
+
+        // Llama a la configuración de Vaadin (esto es clave)
+        super.configure(http);
+
+        // Configura el logout (el que usan tus botones de "Salir")
+        http.logout(logout -> logout
+                .logoutUrl("/logout")
+                .logoutSuccessUrl("/login?logout")
+                .permitAll()
+        );
+
+        // ¡ESTA ES LA MAGIA!
+        // Le dice a Vaadin: usa LoginView para /login
+        // y redirige a /post-login al tener éxito.
+        setLoginView(http, LoginView.class, "/post-login");
+    }
     // 2. Define cómo buscar un usuario en tu base de datos
     @Bean
     public UserDetailsService userDetailsService() {
@@ -49,24 +67,25 @@ public class SecurityConfig extends VaadinWebSecurity {
             Usuario usuario = usuarioRepository.findByEmail(email)
                     .orElseThrow(() -> new UsernameNotFoundException("Email no encontrado: " + email));
 
-            // 3. Asigna roles basados en el TIPO de usuario
             List<GrantedAuthority> authorities = new ArrayList<>();
 
-            if (usuario instanceof Estudiante) {
-                authorities.add(new SimpleGrantedAuthority("ROLE_ESTUDIANTE"));
+            // 1. Todos los usuarios logueados son, como mínimo, "ESTUDIANTE"
+            //    (O ajusta esto si tienes usuarios que NO son estudiantes)
+            authorities.add(new SimpleGrantedAuthority("ROLE_ESTUDIANTE"));
 
-            } else if (usuario instanceof Catedra) {
+            if (usuario instanceof Catedra) {
+                // 2. Si es Cátedra, AÑADE el rol CATEDRA
                 authorities.add(new SimpleGrantedAuthority("ROLE_CATEDRA"));
-                // Si es Cátedra Y es Admin, tiene ambos roles
+
+                // 3. Si además es Admin, AÑADE el rol ADMIN
                 if (((Catedra) usuario).isAdmin()) {
                     authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
                 }
             }
 
-            // 4. Devuelve el usuario que Spring Security entiende
             return new org.springframework.security.core.userdetails.User(
                     usuario.getEmail(),
-                    usuario.getPassword(), // La contraseña ya debe estar encriptada en la BD
+                    usuario.getPassword(),
                     authorities
             );
         };

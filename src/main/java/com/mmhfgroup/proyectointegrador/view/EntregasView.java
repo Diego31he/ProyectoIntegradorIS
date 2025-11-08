@@ -17,7 +17,7 @@ import java.io.InputStream;
 import java.time.LocalDateTime;
 
 @PageTitle("Entregas")
-@Route(value = "entregas", layout = MainLayout.class)
+@Route(value = "entregas", layout = EstudianteLayout.class)
 public class EntregasView extends VerticalLayout {
 
     private final EntregaService servicio; // <-- 1. Quitar el "new EntregaService()"
