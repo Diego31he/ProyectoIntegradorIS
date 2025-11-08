@@ -1,62 +1,104 @@
 package com.mmhfgroup.proyectointegrador.service;
 
+import com.mmhfgroup.proyectointegrador.model.Usuario;
 import com.mmhfgroup.proyectointegrador.model.Catedra;
 import com.mmhfgroup.proyectointegrador.model.Estudiante;
 import com.mmhfgroup.proyectointegrador.repository.UsuarioRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.mmhfgroup.proyectointegrador.repository.CatedraRepository;
+import com.mmhfgroup.proyectointegrador.repository.EstudianteRepository;
+
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Component;
 
-@Component
-public class DataInitializer implements CommandLineRunner {
+import java.util.Optional;
 
-    @Autowired
-    private UsuarioRepository usuarioRepository;
+@Configuration
+public class DataInitializer {
 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
+    @Bean
+    CommandLineRunner initData(
+            UsuarioRepository usuarioRepo,
+            EstudianteRepository estudianteRepo,
+            CatedraRepository catedraRepo,
+            PasswordEncoder encoder // <- usa el bean definido en SecurityConfig
+    ) {
+        return args -> seedBaseUsers(usuarioRepo, estudianteRepo, catedraRepo, encoder);
+    }
 
-    @Override
-    public void run(String... args) throws Exception {
+    @Transactional
+    public void seedBaseUsers(
+            UsuarioRepository usuarioRepo,
+            EstudianteRepository estudianteRepo,
+            CatedraRepository catedraRepo,
+            PasswordEncoder encoder
+    ) {
+        // ADMIN (Cátedra con flag admin=true)
+        createAdminIfMissing(usuarioRepo, catedraRepo, encoder,
+                "admin@demo.com", "admin", "Administrador");
 
-        if (usuarioRepository.count() == 0) {
+        // CÁTEDRA
+        createCatedraIfMissing(usuarioRepo, catedraRepo, encoder,
+                "catedra@demo.com", "catedra", "Profesor");
 
-            System.out.println("No hay usuarios. Creando usuarios de prueba...");
+        // ESTUDIANTE
+        createEstudianteIfMissing(usuarioRepo, estudianteRepo, encoder,
+                "alumno@demo.com", "alumno", "12345");
+    }
 
-            // 1. Usuario ADMIN (Cátedra con isAdmin = true)
-            Catedra admin = new Catedra(
-                    "Admin",
-                    "MMHF",
-                    "admin@mmhf.com",
-                    passwordEncoder.encode("admin"), // pass: admin
-                    "Administrador del Sistema",
-                    true // <-- es Admin
-            );
-            usuarioRepository.save(admin);
+    private void createAdminIfMissing(
+            UsuarioRepository usuarioRepo,
+            CatedraRepository catedraRepo,
+            PasswordEncoder encoder,
+            String email,
+            String rawPassword,
+            String cargo
+    ) {
+        if (usuarioRepo.findByEmail(email).isEmpty()) {
+            Catedra admin = new Catedra();
+            admin.setEmail(email);
+            admin.setPassword(encoder.encode(rawPassword));
+            admin.setCargo(cargo);   // si tu entidad lo tiene
+            admin.setAdmin(true);    // flag de admin
+            catedraRepo.save(admin);
+        }
+    }
 
-            // 2. Usuario DOCENTE (Cátedra con isAdmin = false)
-            Catedra docente = new Catedra(
-                    "Docente",
-                    "Prueba",
-                    "docente@mmhf.com",
-                    passwordEncoder.encode("docente"), // pass: docente
-                    "Jefe de Trabajos Prácticos",
-                    false // <-- NO es Admin
-            );
-            usuarioRepository.save(docente);
+    private void createCatedraIfMissing(
+            UsuarioRepository usuarioRepo,
+            CatedraRepository catedraRepo,
+            PasswordEncoder encoder,
+            String email,
+            String rawPassword,
+            String cargo
+    ) {
+        if (usuarioRepo.findByEmail(email).isEmpty()) {
+            Catedra cat = new Catedra();
+            cat.setEmail(email);
+            cat.setPassword(encoder.encode(rawPassword));
+            cat.setCargo(cargo);     // si tu entidad lo tiene
+            cat.setAdmin(false);
+            catedraRepo.save(cat);
+        }
+    }
 
-            // 3. Usuario ESTUDIANTE
-            Estudiante estudiante = new Estudiante(
-                    "Estudiante",
-                    "Prueba",
-                    "estudiante@mmhf.com",
-                    passwordEncoder.encode("estudiante"), // pass: estudiante
-                    "12345" // Legajo
-            );
-            usuarioRepository.save(estudiante);
-
-            System.out.println("Usuarios de prueba creados.");
+    private void createEstudianteIfMissing(
+            UsuarioRepository usuarioRepo,
+            EstudianteRepository estudianteRepo,
+            PasswordEncoder encoder,
+            String email,
+            String rawPassword,
+            String legajo
+    ) {
+        if (usuarioRepo.findByEmail(email).isEmpty()) {
+            Estudiante est = new Estudiante();
+            est.setEmail(email);
+            est.setPassword(encoder.encode(rawPassword));
+            est.setLegajo(legajo);   // si tu entidad lo tiene
+            estudianteRepo.save(est);
         }
     }
 }

@@ -1,5 +1,7 @@
 package com.mmhfgroup.proyectointegrador.view;
 
+import com.mmhfgroup.proyectointegrador.view.util.ViewModeUtil;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.applayout.DrawerToggle;
 import com.vaadin.flow.component.button.Button;
@@ -18,44 +20,58 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.RouterLink;
 import com.vaadin.flow.theme.lumo.LumoUtility;
-import jakarta.annotation.security.RolesAllowed;
+import com.vaadin.flow.spring.security.AuthenticationContext;
 
-@RolesAllowed("ROLE_ESTUDIANTE") // <-- SOLO Estudiantes pueden ver este layout
 public class EstudianteLayout extends AppLayout {
 
-    // Constructor simple, ya no necesita SecurityService
-    public EstudianteLayout() {
+    private AuthenticationContext auth;
+
+    public EstudianteLayout(AuthenticationContext auth) {
+        this.auth = auth;
         createHeader();
         createDrawer();
     }
 
     private void createHeader() {
-        // ... (Tu método createHeader se queda igual, con el logo MMHF y botón Salir) ...
         DrawerToggle toggle = new DrawerToggle();
+
         Image logo = new Image("images/mmhf_logo.png", "MMHF Logo");
         logo.setHeight("120px");
         logo.getStyle()
                 .set("border-radius", "5px")
                 .set("object-fit", "cover")
                 .set("box-shadow", "0 2px 6px rgba(0,0,0,0.15)");
+
         H2 titulo = new H2("Proyecto Integrador");
-        titulo.getStyle()
-                .set("margin", "0")
-                .set("font-weight", "700")
-                .set("color", "white");
+        titulo.getStyle().set("margin", "0").set("font-weight", "700").set("color", "white");
+
         Span subtitulo = new Span("MMHF Group — Ingeniería de Software");
-        subtitulo.getStyle()
-                .set("font-size", "13px")
-                .set("color", "rgba(255,255,255,0.85)");
+        subtitulo.getStyle().set("font-size", "13px").set("color", "rgba(255,255,255,0.85)");
+
         VerticalLayout textos = new VerticalLayout(titulo, subtitulo);
         textos.setPadding(false);
         textos.setSpacing(false);
         textos.setAlignItems(Alignment.START);
-        Button logout = new Button("Salir");
+
+        // Botón "Volver a mi vista" (solo visible si está en "ver como estudiante")
+        Button backToMyView = new Button("Volver a mi vista", e -> {
+            ViewModeUtil.disableViewAsStudent();
+            ViewModeUtil.goToHomeForCurrentRole();
+        });
+        backToMyView.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
+        backToMyView.setVisible(ViewModeUtil.isViewingAsStudent());
+
+        // refrescar visibilidad cuando se navega dentro del layout
+        getUI().ifPresent(ui -> ui.addBeforeEnterListener(ev ->
+                backToMyView.setVisible(ViewModeUtil.isViewingAsStudent())
+        ));
+
+        Button logout = new Button("Salir", e -> auth.logout()); // <--- CAMBIO
         logout.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
         logout.getStyle().set("color", "white");
-        logout.addClickListener(e -> getUI().ifPresent(ui -> ui.getPage().setLocation("/logout"))); // <-- Botón de Logout
-        HorizontalLayout header = new HorizontalLayout(toggle, logo, textos, logout);
+        logout.setPrefixComponent(new Icon(VaadinIcon.SIGN_OUT));
+
+        HorizontalLayout header = new HorizontalLayout(toggle, logo, textos, backToMyView, logout);
         header.setDefaultVerticalComponentAlignment(Alignment.CENTER);
         header.expand(textos);
         header.setWidthFull();
@@ -64,6 +80,7 @@ public class EstudianteLayout extends AppLayout {
         header.getStyle()
                 .set("background", "linear-gradient(90deg, #1E88E5, #42A5F5)")
                 .set("box-shadow", "0 2px 6px rgba(0,0,0,0.15)");
+
         addToNavbar(header);
     }
 
@@ -72,14 +89,12 @@ public class EstudianteLayout extends AppLayout {
         menu.addClassNames(LumoUtility.Padding.MEDIUM);
         menu.setSizeFull();
 
-        // --- Links de Navegación de ESTUDIANTE ---
         VerticalLayout navLinks = new VerticalLayout(
                 new RouterLink("Inicio", MainView.class),
                 new RouterLink("Entregas", EntregasView.class),
                 new RouterLink("Notificaciones", NotificacionesView.class),
                 new RouterLink("Calendario", CalendarioView.class),
                 new RouterLink("Mensajeria", ForoView.class)
-                // NO hay link de Admin/Equipos aquí
         );
         navLinks.setPadding(false);
         navLinks.setSpacing(false);
@@ -87,14 +102,12 @@ public class EstudianteLayout extends AppLayout {
         Div spacer = new Div();
         spacer.getStyle().set("flex-grow", "1");
 
-        // ... (Tu código del "Details" de "Nosotros" se queda igual) ...
-        Details nosotrosDetails = createNosotrosDetails(); // <-- Mover a método auxiliar
+        Details nosotrosDetails = createNosotrosDetails();
 
         menu.add(navLinks, spacer, nosotrosDetails);
         addToDrawer(menu);
     }
 
-    // --- Métodos auxiliares (copiados de tu MainLayout) ---
     private Details createNosotrosDetails() {
         HorizontalLayout socialIconsLayout = new HorizontalLayout();
         socialIconsLayout.setWidthFull();
@@ -104,13 +117,18 @@ public class EstudianteLayout extends AppLayout {
                 createSocialLink("X", new Icon(VaadinIcon.TWITTER), "https://www.x.com/"),
                 createSocialLink("Web", new Icon(VaadinIcon.GLOBE), "http://mmhfgroup.com.ar")
         );
+
         VerticalLayout detailsContent = new VerticalLayout(socialIconsLayout);
         detailsContent.setAlignItems(Alignment.CENTER);
         detailsContent.setSpacing(true);
         detailsContent.setPadding(false);
         detailsContent.getStyle().set("padding-top", "var(--lumo-space-s)");
+
         Span nosotrosSummary = new Span("Nosotros");
-        nosotrosSummary.getStyle().set("font-size", "var(--lumo-font-size-m)").set("font-weight", "500").set("color", "var(--lumo-body-text-color)");
+        nosotrosSummary.getStyle().set("font-size", "var(--lumo-font-size-m)")
+                .set("font-weight", "500")
+                .set("color", "var(--lumo-body-text-color)");
+
         Details nosotrosDetails = new Details(nosotrosSummary, detailsContent);
         nosotrosDetails.setWidthFull();
         return nosotrosDetails;
@@ -120,10 +138,11 @@ public class EstudianteLayout extends AppLayout {
         Anchor link = new Anchor(url, icon);
         link.setTarget("_blank");
         link.setTitle(label);
+
         Span text = new Span(label);
-        text.getStyle()
-                .set("font-size", "var(--lumo-font-size-s)")
+        text.getStyle().set("font-size", "var(--lumo-font-size-s)")
                 .set("color", "var(--lumo-secondary-text-color)");
+
         VerticalLayout column = new VerticalLayout(text, link);
         column.setAlignItems(Alignment.CENTER);
         column.setPadding(false);
