@@ -10,6 +10,11 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.RouterLink;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 import jakarta.annotation.security.RolesAllowed;
+import com.mmhfgroup.proyectointegrador.view.MainView; // <-- Importar MainView
+import com.mmhfgroup.proyectointegrador.view.EquiposView; // <-- Importar EquiposView
+import com.vaadin.flow.component.icon.Icon; // <-- Importar Icon
+import com.vaadin.flow.component.icon.VaadinIcon;
+import com.mmhfgroup.proyectointegrador.model.Catedra;
 
 @RolesAllowed("ROLE_ADMIN") // <-- SOLO Admin
 public class AdminLayout extends AppLayout {
@@ -52,15 +57,30 @@ public class AdminLayout extends AppLayout {
 
         // --- Menú Específico de Admin ---
         menu.add(
-                new RouterLink("Dashboard Admin", AdminDashboardView.class),
+                new RouterLink("Dashboard", AdminDashboardView.class),
+                // Esta es la línea correcta (la que tú tenías):
                 new RouterLink("Importar Datos", AdminImportView.class)
-                // (Aquí irán "Gestionar Usuarios", etc.)
         );
 
-        // --- Link para volver al sitio (vista de Cátedra) ---
+        // --- AÑADIR ESTO (Los botones de "Ver como") ---
         menu.add(LumoUtility.Margin.Top.LARGE);
-        menu.add(new RouterLink("← Volver a Vista Cátedra", EquiposView.class));
 
+        // Link para "Ver como Cátedra"
+        RouterLink vistaCatedra = new RouterLink();
+        vistaCatedra.add(new Icon(VaadinIcon.EYE), new Span("Ver como Cátedra"));
+        vistaCatedra.setRoute(EquiposView.class); // (Página principal de Cátedra)
+        menu.add(vistaCatedra);
+
+        // Link para "Ver como Estudiante"
+        RouterLink vistaEstudiante = new RouterLink();
+        vistaEstudiante.add(new Icon(VaadinIcon.EYE), new Span("Ver como Estudiante"));
+        vistaEstudiante.setRoute(MainView.class); // (Página principal de Estudiante)
+        menu.add(vistaEstudiante);
+
+        menu.add(LumoUtility.Margin.Top.AUTO); // Empuja el link de "Volver"
+        // --- FIN DE LO AÑADIDO ---
+
+        menu.add(new RouterLink("← Volver al Sitio", MainView.class));
         addToDrawer(menu);
     }
 }

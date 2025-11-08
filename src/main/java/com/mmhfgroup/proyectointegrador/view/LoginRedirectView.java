@@ -19,23 +19,19 @@ public class LoginRedirectView extends VerticalLayout implements BeforeEnterObse
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        // Redirige al usuario basado en su rol
 
+        // 1. El Admin va a su Dashboard
         if (securityService.isUserAdmin()) {
-            // 1. Si es Admin, va al dashboard de admin
             event.rerouteTo(AdminDashboardView.class);
 
+            // 2. La Cátedra (que NO es Admin) va a su vista
         } else if (securityService.isUserCatedra()) {
-            // 2. Si es Cátedra (pero no admin), va a la vista de Equipos
+            // (Usamos EquiposView como "home" de Catedra)
             event.rerouteTo(EquiposView.class);
 
-        } else if (securityService.isUserEstudiante()) {
-            // 3. Si es Estudiante, va a la vista principal
-            event.rerouteTo(MainView.class);
-
+            // 3. Por defecto, el resto (Estudiantes) va a la vista principal
         } else {
-            // Caso por defecto (no debería pasar si está logueado)
-            event.rerouteTo(LoginView.class);
+            event.rerouteTo(MainView.class);
         }
     }
 }
