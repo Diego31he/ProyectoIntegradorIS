@@ -10,9 +10,11 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import jakarta.annotation.security.RolesAllowed;
 
 @PageTitle("Equipos")
-@Route(value = "equipos", layout = MainLayout.class)
+@Route(value = "equipos", layout = CatedraLayout.class)
+@RolesAllowed({"ROLE_CATEDRA", "ROLE_ADMIN"})
 public class EquiposView extends VerticalLayout {
 
     private final EquipoService servicio = new EquipoService();

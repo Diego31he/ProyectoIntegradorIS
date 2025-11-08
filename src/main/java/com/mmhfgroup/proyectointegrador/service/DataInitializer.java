@@ -1,6 +1,7 @@
 package com.mmhfgroup.proyectointegrador.service;
 
 import com.mmhfgroup.proyectointegrador.model.Catedra;
+import com.mmhfgroup.proyectointegrador.model.Estudiante;
 import com.mmhfgroup.proyectointegrador.repository.UsuarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
@@ -18,25 +19,44 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        // 1. Revisa si ya hay usuarios. Si hay, no hace nada.
+
         if (usuarioRepository.count() == 0) {
 
-            System.out.println("No hay usuarios. Creando usuario ADMIN de prueba...");
+            System.out.println("No hay usuarios. Creando usuarios de prueba...");
 
-            // 2. Crea un usuario de Cátedra que también es Admin
+            // 1. Usuario ADMIN (Cátedra con isAdmin = true)
             Catedra admin = new Catedra(
                     "Admin",
                     "MMHF",
-                    "admin@mmhf.com", // Este será el usuario de login
-                    passwordEncoder.encode("admin"), // ¡IMPORTANTE! Encripta el password "admin"
+                    "admin@mmhf.com",
+                    passwordEncoder.encode("admin"), // pass: admin
                     "Administrador del Sistema",
-                    true // <-- true = es Admin
+                    true // <-- es Admin
             );
-
-            // 3. Guarda el usuario en la base de datos
             usuarioRepository.save(admin);
 
-            System.out.println("Usuario ADMIN creado: admin@mmhf.com / (pass: admin)");
+            // 2. Usuario DOCENTE (Cátedra con isAdmin = false)
+            Catedra docente = new Catedra(
+                    "Docente",
+                    "Prueba",
+                    "docente@mmhf.com",
+                    passwordEncoder.encode("docente"), // pass: docente
+                    "Jefe de Trabajos Prácticos",
+                    false // <-- NO es Admin
+            );
+            usuarioRepository.save(docente);
+
+            // 3. Usuario ESTUDIANTE
+            Estudiante estudiante = new Estudiante(
+                    "Estudiante",
+                    "Prueba",
+                    "estudiante@mmhf.com",
+                    passwordEncoder.encode("estudiante"), // pass: estudiante
+                    "12345" // Legajo
+            );
+            usuarioRepository.save(estudiante);
+
+            System.out.println("Usuarios de prueba creados.");
         }
     }
 }

@@ -9,7 +9,7 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
 @PageTitle("Notificaciones")
-@Route(value = "notificaciones", layout = MainLayout.class)
+@Route(value = "notificaciones", layout = EstudianteLayout.class)
 public class NotificacionesView extends VerticalLayout {
 
     private final NotificacionService servicio = new NotificacionService();
