@@ -11,11 +11,11 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import jakarta.annotation.security.RolesAllowed;
+import jakarta.annotation.security.PermitAll;
 
 @Route(value = "", layout = EstudianteLayout.class)
 @PageTitle("Inicio | Proyecto Integrador")
-@RolesAllowed("ROLE_ESTUDIANTE")
+@PermitAll
 public class MainView extends VerticalLayout {
 
     public MainView() {

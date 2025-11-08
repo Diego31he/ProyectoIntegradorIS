@@ -1,7 +1,7 @@
 package com.mmhfgroup.proyectointegrador.view;
 
-import com.mmhfgroup.proyectointegrador.security.SecurityService;
-// ... (Imports de Vaadin: AppLayout, Button, H2, RouterLink, etc.)
+import com.mmhfgroup.proyectointegrador.view.util.ViewModeUtil;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.applayout.DrawerToggle;
 import com.vaadin.flow.component.button.Button;
@@ -20,27 +20,21 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.RouterLink;
 import com.vaadin.flow.theme.lumo.LumoUtility;
-import jakarta.annotation.security.RolesAllowed;
-import org.springframework.beans.factory.annotation.Autowired;
-import com.mmhfgroup.proyectointegrador.view.MainView;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import com.vaadin.flow.spring.security.AuthenticationContext;
 
-// <-- Cátedra Y Admin pueden ver esto
-@RolesAllowed({"ROLE_CATEDRA"})
 public class CatedraLayout extends AppLayout {
 
-    private final SecurityService securityService;
+    private final AuthenticationContext auth;
 
-    // <-- Inyectamos SecurityService
-    @Autowired
-    public CatedraLayout(SecurityService securityService) {
-        this.securityService = securityService;
+    public CatedraLayout(AuthenticationContext auth) {
+        this.auth = auth;
         createHeader();
         createDrawer();
     }
 
     private void createHeader() {
-        // ... (Es EXACTAMENTE IGUAL al createHeader de EstudianteLayout) ...
-        // (Copiar y pegar el método createHeader de EstudianteLayout aquí)
         DrawerToggle toggle = new DrawerToggle();
         Image logo = new Image("images/mmhf_logo.png", "MMHF Logo");
         logo.setHeight("120px");
@@ -49,23 +43,36 @@ public class CatedraLayout extends AppLayout {
                 .set("object-fit", "cover")
                 .set("box-shadow", "0 2px 6px rgba(0,0,0,0.15)");
         H2 titulo = new H2("Proyecto Integrador");
-        titulo.getStyle()
-                .set("margin", "0")
-                .set("font-weight", "700")
-                .set("color", "white");
+        titulo.getStyle().set("margin", "0").set("font-weight", "700").set("color", "white");
         Span subtitulo = new Span("MMHF Group — Ingeniería de Software");
-        subtitulo.getStyle()
-                .set("font-size", "13px")
-                .set("color", "rgba(255,255,255,0.85)");
+        subtitulo.getStyle().set("font-size", "13px").set("color", "rgba(255,255,255,0.85)");
+
         VerticalLayout textos = new VerticalLayout(titulo, subtitulo);
         textos.setPadding(false);
         textos.setSpacing(false);
         textos.setAlignItems(Alignment.START);
-        Button logout = new Button("Salir");
+
+        // === Botón "Volver a mi vista" solo para ADMIN ===
+        boolean isAdmin = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getAuthorities()
+                .stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch("ROLE_ADMIN"::equals);
+
+        Button backToMyView = new Button("Volver a mi vista", e -> {
+            // Te lleva al home real según tu rol (admin -> admin/dashboard)
+            ViewModeUtil.goToHomeForCurrentRole();
+        });
+        backToMyView.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
+        backToMyView.setVisible(isAdmin);
+
+        Button logout = new Button("Salir", e -> auth.logout()); // <--- CAMBIO
         logout.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
         logout.getStyle().set("color", "white");
-        logout.addClickListener(e -> getUI().ifPresent(ui -> ui.getPage().setLocation("/logout"))); // <-- Botón de Logout
-        HorizontalLayout header = new HorizontalLayout(toggle, logo, textos, logout);
+        logout.setPrefixComponent(new Icon(VaadinIcon.SIGN_OUT));
+
+        HorizontalLayout header = new HorizontalLayout(toggle, logo, textos, backToMyView, logout);
         header.setDefaultVerticalComponentAlignment(Alignment.CENTER);
         header.expand(textos);
         header.setWidthFull();
@@ -74,36 +81,41 @@ public class CatedraLayout extends AppLayout {
         header.getStyle()
                 .set("background", "linear-gradient(90deg, #1E88E5, #42A5F5)")
                 .set("box-shadow", "0 2px 6px rgba(0,0,0,0.15)");
+
         addToNavbar(header);
     }
 
     private void createDrawer() {
         VerticalLayout menu = new VerticalLayout();
         menu.addClassNames(LumoUtility.Padding.MEDIUM);
+        menu.setSizeFull();
 
-        menu.add(
+        VerticalLayout navLinks = new VerticalLayout(
                 new RouterLink("Equipos", EquiposView.class),
                 new RouterLink("Entregas (Cátedra)", EntregasView.class),
                 new RouterLink("Calendario", CalendarioView.class),
                 new RouterLink("Foro", ForoView.class),
                 new RouterLink("Notificaciones", NotificacionesView.class)
         );
+        navLinks.setPadding(false);
+        navLinks.setSpacing(false);
 
-        // --- AÑADIR ESTO ---
-        menu.add(LumoUtility.Margin.Top.LARGE); // Un espacio
+        Button verComoEst = new Button("Ver como Estudiante", e -> {
+            ViewModeUtil.enableViewAsStudent();
+            UI.getCurrent().navigate(""); // Home Estudiante
+        });
+        verComoEst.setPrefixComponent(new Icon(VaadinIcon.EYE));
+        verComoEst.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_CONTRAST);
 
-        RouterLink vistaEstudiante = new RouterLink();
-        vistaEstudiante.add(new Icon(VaadinIcon.EYE), new Span("Ver como Estudiante"));
-        vistaEstudiante.setRoute(MainView.class);
+        Div spacer = new Div();
+        spacer.getStyle().set("flex-grow", "1");
 
-        menu.add(vistaEstudiante);
-        // --- FIN DE LO AÑADIDO ---
+        Details nosotrosDetails = createNosotrosDetails();
 
+        menu.add(navLinks, verComoEst, spacer, nosotrosDetails);
         addToDrawer(menu);
     }
 
-    // --- Métodos auxiliares (copiados de tu MainLayout) ---
-    // (Copiar y pegar los métodos createNosotrosDetails y createSocialLink aquí)
     private Details createNosotrosDetails() {
         HorizontalLayout socialIconsLayout = new HorizontalLayout();
         socialIconsLayout.setWidthFull();
@@ -116,13 +128,18 @@ public class CatedraLayout extends AppLayout {
         Anchor webLinkText = new Anchor("http://mmhfgroup.com.ar", "mmhfgroup.com.ar");
         webLinkText.setTarget("_blank");
         webLinkText.getStyle().set("font-size", "var(--lumo-font-size-s)").set("color", "var(--lumo-contrast-70pct)");
+
         VerticalLayout detailsContent = new VerticalLayout(socialIconsLayout, webLinkText);
         detailsContent.setAlignItems(Alignment.CENTER);
         detailsContent.setSpacing(true);
         detailsContent.setPadding(false);
         detailsContent.getStyle().set("padding-top", "var(--lumo-space-s)");
+
         Span nosotrosSummary = new Span("Nosotros");
-        nosotrosSummary.getStyle().set("font-size", "var(--lumo-font-size-m)").set("font-weight", "500").set("color", "var(--lumo-body-text-color)");
+        nosotrosSummary.getStyle().set("font-size", "var(--lumo-font-size-m)")
+                .set("font-weight", "500")
+                .set("color", "var(--lumo-body-text-color)");
+
         Details nosotrosDetails = new Details(nosotrosSummary, detailsContent);
         nosotrosDetails.setWidthFull();
         return nosotrosDetails;
@@ -132,10 +149,11 @@ public class CatedraLayout extends AppLayout {
         Anchor link = new Anchor(url, icon);
         link.setTarget("_blank");
         link.setTitle(label);
+
         Span text = new Span(label);
-        text.getStyle()
-                .set("font-size", "var(--lumo-font-size-s)")
+        text.getStyle().set("font-size", "var(--lumo-font-size-s)")
                 .set("color", "var(--lumo-secondary-text-color)");
+
         VerticalLayout column = new VerticalLayout(text, link);
         column.setAlignItems(Alignment.CENTER);
         column.setPadding(false);
