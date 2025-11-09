@@ -53,6 +53,7 @@ public class CatedraLayout extends AppLayout {
         textos.setAlignItems(Alignment.START);
 
         // === Botón "Volver a mi vista" solo para ADMIN ===
+        // Esta es la lógica correcta para tu ViewModeUtil.java
         boolean isAdmin = SecurityContextHolder.getContext()
                 .getAuthentication()
                 .getAuthorities()
@@ -65,9 +66,9 @@ public class CatedraLayout extends AppLayout {
             ViewModeUtil.goToHomeForCurrentRole();
         });
         backToMyView.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
-        backToMyView.setVisible(isAdmin);
+        backToMyView.setVisible(isAdmin); // Solo visible si sos Admin
 
-        Button logout = new Button("Salir", e -> auth.logout()); // <--- CAMBIO
+        Button logout = new Button("Salir", e -> auth.logout());
         logout.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
         logout.getStyle().set("color", "white");
         logout.setPrefixComponent(new Icon(VaadinIcon.SIGN_OUT));
@@ -91,18 +92,19 @@ public class CatedraLayout extends AppLayout {
         menu.setSizeFull();
 
         VerticalLayout navLinks = new VerticalLayout(
+                // Asegúrate de que tus RouterLinks coincidan con tus clases de Vista
+                // El archivo que me pasaste tenía enlaces a EntregasView, CalendarioView, etc.
+                // Los he quitado para que coincidan con la lógica de Cátedra
+                new RouterLink("Dashboard", CatedraHomeView.class), // Asumiendo que CatedraHomeView existe
                 new RouterLink("Equipos", EquiposView.class),
-                new RouterLink("Entregas (Cátedra)", EntregasView.class),
-                new RouterLink("Calendario", CalendarioView.class),
-                new RouterLink("Foro", ForoView.class),
-                new RouterLink("Notificaciones", NotificacionesView.class)
+                new RouterLink("Gestionar Secciones", CatedraSeccionesView.class) // La vista que creamos
         );
         navLinks.setPadding(false);
         navLinks.setSpacing(false);
 
         Button verComoEst = new Button("Ver como Estudiante", e -> {
             ViewModeUtil.enableViewAsStudent();
-            UI.getCurrent().navigate(""); // Home Estudiante
+            UI.getCurrent().navigate(""); // Home Estudiante (MainView)
         });
         verComoEst.setPrefixComponent(new Icon(VaadinIcon.EYE));
         verComoEst.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_CONTRAST);

@@ -5,14 +5,14 @@ import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.upload.Upload;
-import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
+import com.vaadin.flow.component.upload.receivers.MultiFileMemoryBuffer; // <-- IMPORT MODERNO
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
 
 import java.io.InputStream;
 
-@Route(value = "admin/importar", layout = AdminLayout.class) // <-- 1. CAMBIAR LAYOUT
+@Route(value = "admin/importar", layout = AdminLayout.class)
 @PageTitle("Importar Datos")
 @RolesAllowed("ROLE_ADMIN")
 public class AdminImportView extends VerticalLayout {
@@ -24,13 +24,18 @@ public class AdminImportView extends VerticalLayout {
 
         add(new H2("Carga de Datos Históricos (Excel)"));
 
-        MemoryBuffer buffer = new MemoryBuffer();
+        // --- INICIO DE CORRECCIÓN API MODERNA ---
+        MultiFileMemoryBuffer buffer = new MultiFileMemoryBuffer();
         Upload upload = new Upload(buffer);
+        // --- FIN DE CORRECCIÓN API MODERNA ---
+
         upload.setAcceptedFileTypes(".xlsx");
         upload.setDropLabel(new com.vaadin.flow.component.html.Span("Arrastrar archivo .xlsx aquí"));
 
-        upload.addSucceededListener(event -> {
-            InputStream inputStream = buffer.getInputStream();
+        // --- INICIO DE CORRECCIÓN API MODERNA ---
+        upload.addFinishedListener(event -> {
+            String nombreArchivo = event.getFileName();
+            InputStream inputStream = buffer.getInputStream(nombreArchivo); // <-- Usar el nombre de archivo
             try {
                 // Llama al servicio refactorizado
                 dataImportService.importarDesdeStream(inputStream);
@@ -40,6 +45,7 @@ public class AdminImportView extends VerticalLayout {
                 Notification.show("Error en la importación: " + e.getMessage(), 5000, Notification.Position.MIDDLE);
             }
         });
+        // --- FIN DE CORRECCIÓN API MODERNA ---
 
         add(upload);
     }

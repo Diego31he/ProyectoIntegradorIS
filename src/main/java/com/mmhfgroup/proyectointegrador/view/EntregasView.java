@@ -1,71 +1,122 @@
 package com.mmhfgroup.proyectointegrador.view;
 
 import com.mmhfgroup.proyectointegrador.model.Entrega;
+import com.mmhfgroup.proyectointegrador.model.Seccion;
+import com.mmhfgroup.proyectointegrador.model.Usuario;
+import com.mmhfgroup.proyectointegrador.model.ZonaEntrega;
+import com.mmhfgroup.proyectointegrador.repository.SeccionRepository;
+import com.mmhfgroup.proyectointegrador.security.SecurityService;
 import com.mmhfgroup.proyectointegrador.service.EntregaService;
 import com.mmhfgroup.proyectointegrador.service.NotificacionService;
-import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.accordion.Accordion;
 import com.vaadin.flow.component.html.H2;
+import com.vaadin.flow.component.html.H3;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.upload.FinishedEvent; // <-- IMPORT NUEVO
 import com.vaadin.flow.component.upload.Upload;
-import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
+import com.vaadin.flow.component.upload.receivers.MultiFileMemoryBuffer; // <-- IMPORT MODERNO
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import jakarta.annotation.security.RolesAllowed;
 
-import java.io.InputStream;
+import java.io.InputStream; // <-- IMPORT NUEVO
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @PageTitle("Entregas")
 @Route(value = "entregas", layout = EstudianteLayout.class)
+@RolesAllowed({"ROLE_ESTUDIANTE", "ROLE_ADMIN"})
 public class EntregasView extends VerticalLayout {
 
-    private final EntregaService servicio; // <-- 1. Quitar el "new EntregaService()"
-    private final NotificacionService notificacionService = new NotificacionService();
-    private final Grid<Entrega> grid = new Grid<>(Entrega.class);
+    private final EntregaService entregaService;
+    private final SeccionRepository seccionRepo;
+    private final SecurityService securityService;
+    private final NotificacionService notificacionService;
 
-    // 2. Pedir el servicio en el constructor (Spring lo inyectará)
-    public EntregasView(EntregaService servicio) {
-        this.servicio = servicio; // 3. Asignarlo
+    public EntregasView(EntregaService entregaService, SeccionRepository seccionRepo,
+                        SecurityService securityService, NotificacionService notificacionService) {
 
-        setPadding(true);        setSpacing(true);
-        add(new H2("Gestión de Entregas"));
+        this.entregaService = entregaService;
+        this.seccionRepo = seccionRepo;
+        this.securityService = securityService;
+        this.notificacionService = notificacionService;
 
-        MemoryBuffer buffer = new MemoryBuffer();
-        Upload upload = new Upload(buffer);
-        upload.setDropLabel(new com.vaadin.flow.component.html.Span("Arrastrar o seleccionar un archivo"));
-        upload.setAcceptedFileTypes(".pdf", ".docx", ".jpg", ".png");
+        setPadding(true);
+        setSpacing(true);
+        add(new H2("Secciones de Entrega"));
 
-        upload.addSucceededListener(event -> {
-            String nombreArchivo = event.getFileName();
-            InputStream inputStream = buffer.getInputStream();
+        Accordion accordion = new Accordion();
+        accordion.setWidthFull();
 
-            // Registrar la entrega
-            Entrega nueva = new Entrega(nombreArchivo, LocalDateTime.now());
-            servicio.registrarEntrega(nueva);
-            grid.setItems(servicio.listarEntregas());
+        List<Seccion> secciones = seccionRepo.findAll();
 
-            // Generar la notificación
-            String mensaje = "📩 Se ha subido una nueva entrega: " + nombreArchivo;
-            notificacionService.agregarNotificacion(mensaje);
-            Notification.show(mensaje, 4000, Notification.Position.BOTTOM_CENTER);
-        });
+        for (Seccion seccion : secciones) {
+            VerticalLayout zonasLayout = new VerticalLayout();
+            zonasLayout.setSpacing(true);
 
-        grid.setColumns("nombreArchivo", "fechaHora");
-        grid.getColumnByKey("nombreArchivo").setHeader("Archivo");
-        grid.getColumnByKey("fechaHora").setHeader("Fecha y Hora");
-        grid.setItems(servicio.listarEntregas());
+            List<ZonaEntrega> zonas = seccion.getZonasDeEntrega();
 
-        Button eliminar = new Button("Eliminar entrega seleccionada", e -> {
-            Entrega seleccionada = grid.asSingleSelect().getValue();
-            if (seleccionada != null) {
-                servicio.eliminarEntrega(seleccionada);
-                grid.setItems(servicio.listarEntregas());
-                Notification.show("Entrega eliminada");
+            if (zonas.isEmpty()) {
+                zonasLayout.add(new Span("No hay zonas de entrega disponibles en esta sección."));
+            } else {
+                for (ZonaEntrega zona : zonas) {
+                    zonasLayout.add(createZonaLayout(zona));
+                }
             }
-        });
+            accordion.add(seccion.getTitulo(), zonasLayout);
+        }
 
-        add(upload, eliminar, grid);
-        grid.setItems(servicio.listarEntregas());
+        add(accordion);
+    }
+
+    private VerticalLayout createZonaLayout(ZonaEntrega zona) {
+        VerticalLayout layout = new VerticalLayout();
+        layout.setSpacing(false);
+        layout.setPadding(false);
+
+        String titulo = zona.getTitulo();
+        String fechaCierre = (zona.getFechaCierre() != null)
+                ? " (Vence: " + zona.getFechaCierre().toString() + ")"
+                : "";
+
+        layout.add(new H3(titulo + fechaCierre));
+
+        // --- INICIO DE CORRECCIÓN API MODERNA ---
+        MultiFileMemoryBuffer buffer = new MultiFileMemoryBuffer();
+        Upload upload = new Upload(buffer);
+        // --- FIN DE CORRECCIÓN API MODERNA ---
+
+        upload.setAcceptedFileTypes(".pdf", ".docx", ".jpg", ".png", ".zip");
+        upload.setDropLabel(new Span("Arrastrar archivo aquí"));
+
+        if (zona.getFechaCierre() != null && zona.getFechaCierre().isBefore(LocalDate.now())) {
+            upload.setEnabled(false);
+            layout.add(new Span("La fecha de entrega para esta zona ha finalizado."));
+        }
+
+        // --- INICIO DE CORRECCIÓN API MODERNA ---
+        // Se usa addFinishedListener (el método moderno)
+        upload.addFinishedListener(event -> {
+            String nombreArchivo = event.getFileName();
+
+            // Obtenemos el InputStream del buffer usando el nombre del archivo
+            InputStream inputStream = buffer.getInputStream(nombreArchivo);
+
+            Usuario autor = securityService.getAuthenticatedUser();
+
+            Entrega nueva = new Entrega(nombreArchivo, LocalDateTime.now(), zona, autor);
+            entregaService.registrarEntrega(nueva);
+
+            String mensaje = "📩 " + autor.getNombre() + " ha subido una entrega: " + nombreArchivo + " (en " + zona.getTitulo() + ")";
+            notificacionService.agregarNotificacion(mensaje);
+            Notification.show("Entrega '" + nombreArchivo + "' subida con éxito.", 4000, Notification.Position.BOTTOM_CENTER);
+        });
+        // --- FIN DE CORRECCIÓN API MODERNA ---
+
+        layout.add(upload);
+        return layout;
     }
 }
