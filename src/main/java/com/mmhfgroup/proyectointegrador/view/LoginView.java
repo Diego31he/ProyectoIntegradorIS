@@ -1,6 +1,7 @@
 package com.mmhfgroup.proyectointegrador.view;
 
 import com.vaadin.flow.component.html.H1;
+import com.vaadin.flow.component.html.H2; // <-- El import que agregamos
 import com.vaadin.flow.component.login.LoginForm;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.BeforeEnterEvent;
@@ -11,7 +12,7 @@ import com.vaadin.flow.server.auth.AnonymousAllowed;
 
 @Route("login")
 @PageTitle("Login | Proyecto Integrador")
-@AnonymousAllowed // Permite que usuarios NO logueados vean esta página
+@AnonymousAllowed
 public class LoginView extends VerticalLayout implements BeforeEnterObserver {
 
     private final LoginForm login = new LoginForm();
@@ -22,20 +23,32 @@ public class LoginView extends VerticalLayout implements BeforeEnterObserver {
         setAlignItems(Alignment.CENTER);
         setJustifyContentMode(JustifyContentMode.CENTER);
 
-        // Apunta el formulario de login a la URL de Spring Security
         login.setAction("login");
 
-        add(new H1("Proyecto Integrador - MMHF"), login);
+        // --- El texto que agregamos ---
+        H2 tituloFasta = new H2("UNIVERSIDAD FASTA FACULTAD INGENIERÍA"+"\n"+"SIUF Web");
+        tituloFasta.getStyle()
+                .set("font-size", "var(--lumo-font-size-l)")
+                .set("color", "var(--lumo-secondary-text-color)")
+                .set("font-weight", "600")
+                .set("margin-bottom", "0px");
+
+        H1 tituloPrincipal = new H1("Proyecto Integrador - MMHF");
+        tituloPrincipal.getStyle().set("margin-top", "0px");
+
+        add(tituloFasta, tituloPrincipal, login);
     }
 
+    // --- INICIO DE LA CORRECCIÓN ---
     @Override
     public void beforeEnter(BeforeEnterEvent beforeEnterEvent) {
         // Muestra un error si el login falla (ej. mal usuario/pass)
         if (beforeEnterEvent.getLocation()
                 .getQueryParameters()
-                .getParameters()
+                .getParameters() // <-- Esta era la línea que faltaba
                 .containsKey("error")) {
             login.setError(true);
         }
     }
+    // --- FIN DE LA CORRECCIÓN ---
 }
