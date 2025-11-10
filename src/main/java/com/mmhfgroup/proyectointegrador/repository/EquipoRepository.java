@@ -11,4 +11,5 @@ public interface EquipoRepository extends JpaRepository<Equipo, Long> {
     Optional<Equipo> findByNumero(Integer numero);
     List<Equipo> findAllByOrderByNumeroAsc();
     Optional<Equipo> findTopByOrderByNumeroDesc();
+    List<Equipo> findByAuditor(String auditor);
 }

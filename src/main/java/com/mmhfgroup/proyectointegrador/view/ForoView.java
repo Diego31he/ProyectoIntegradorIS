@@ -2,14 +2,13 @@ package com.mmhfgroup.proyectointegrador.view;
 
 import com.mmhfgroup.proyectointegrador.model.Mensaje;
 import com.mmhfgroup.proyectointegrador.model.MensajePrivado;
-import com.mmhfgroup.proyectointegrador.model.Usuario; // <-- AÑADIDO
-import com.mmhfgroup.proyectointegrador.repository.UsuarioRepository; // <-- AÑADIDO
-import com.mmhfgroup.proyectointegrador.security.SecurityService; // <-- AÑADIDO
+import com.mmhfgroup.proyectointegrador.model.Usuario;
+import com.mmhfgroup.proyectointegrador.repository.UsuarioRepository;
+import com.mmhfgroup.proyectointegrador.security.SecurityService;
 import com.mmhfgroup.proyectointegrador.service.ForoService;
-// import com.mmhfgroup.proyectointegrador.service.NotificacionService; // <-- ELIMINADO (el servicio lo maneja)
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.combobox.MultiSelectComboBox; // <-- AÑADIDO
+import com.vaadin.flow.component.combobox.MultiSelectComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H2;
@@ -22,9 +21,9 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.PermitAll;
-import org.springframework.beans.factory.annotation.Autowired; // <-- AÑADIDO
+import org.springframework.beans.factory.annotation.Autowired;
 
-import java.util.ArrayList; // <-- AÑADIDO
+import java.util.ArrayList;
 import java.util.List;
 
 @PageTitle("Foro de Consultas")
@@ -32,9 +31,6 @@ import java.util.List;
 @PermitAll
 public class ForoView extends HorizontalLayout {
 
-    // --- INICIO DE CAMBIOS ---
-
-    // Servicios inyectados, NO instanciados con 'new'
     private final ForoService foroService;
     private final UsuarioRepository usuarioRepository;
     private final Usuario usuarioActual;
@@ -42,46 +38,36 @@ public class ForoView extends HorizontalLayout {
     private final Grid<Mensaje> gridPublico = new Grid<>(Mensaje.class);
     private final Grid<MensajePrivado> gridPrivados = new Grid<>(MensajePrivado.class);
 
-    @Autowired // <-- Inyección de dependencias en el constructor
+    @Autowired
     public ForoView(ForoService foroService, SecurityService securityService, UsuarioRepository usuarioRepository) {
         this.foroService = foroService;
         this.usuarioRepository = usuarioRepository;
-        this.usuarioActual = securityService.getAuthenticatedUser(); // Obtenemos el usuario logueado
-
-        // --- FIN DE CAMBIOS ---
+        this.usuarioActual = securityService.getAuthenticatedUser();
 
         setSizeFull();
         setPadding(true);
         setSpacing(true);
 
-        // === FORO PÚBLICO ===
+        // ... (El código de 'FORO PÚBLICO' se mantiene igual) ...
         VerticalLayout foroPublico = new VerticalLayout();
         foroPublico.setSizeFull();
         foroPublico.setWidth("50%");
         foroPublico.add(new H2("Foro de Consultas (Público)"));
-
-        // CAMBIADO: No pedimos el autor, lo tomamos del usuario logueado
-        // TextField autor = new TextField("Usuario"); // <-- ELIMINADO
         TextArea mensaje = new TextArea("Mensaje");
         mensaje.setLabel("Escribe tu mensaje (publicado como: " + usuarioActual.getNombre() + ")");
         mensaje.setWidthFull();
         Button publicar = new Button("Publicar");
-
         publicar.addClickListener(e -> {
-            // CAMBIADO: Usamos el servicio inyectado y el usuario actual
             foroService.publicarMensaje(usuarioActual, mensaje.getValue());
             mensaje.clear();
             refrescarMensajesPublicos();
             Notification.show("💬 Mensaje publicado", 3000, Notification.Position.BOTTOM_CENTER);
         });
-
-        // CAMBIADO: Usamos 'getAutorNombre' del modelo actualizado
         gridPublico.setColumns("autorNombre", "contenido", "fechaHora");
         gridPublico.getColumnByKey("autorNombre").setHeader("Autor");
         gridPublico.getColumnByKey("contenido").setHeader("Mensaje");
         gridPublico.getColumnByKey("fechaHora").setHeader("Fecha y Hora");
-
-        foroPublico.add(mensaje, publicar, gridPublico); // <-- Layout actualizado
+        foroPublico.add(mensaje, publicar, gridPublico);
         foroPublico.setFlexGrow(1, gridPublico);
 
         // === MENSAJES PRIVADOS ===
@@ -91,36 +77,36 @@ public class ForoView extends HorizontalLayout {
 
         H2 tituloPrivado = new H2("Mensajes Privados");
         Button botonPrivado = new Button("✉️ Nuevo Mensaje Privado");
-        botonPrivado.addClickListener(e -> abrirDialogoPrivado()); // <-- Este método se actualizó
+        botonPrivado.addClickListener(e -> abrirDialogoPrivado());
 
         VerticalLayout encabezadoPrivado = new VerticalLayout(tituloPrivado, botonPrivado);
         encabezadoPrivado.setAlignItems(Alignment.CENTER);
         encabezadoPrivado.setSpacing(false);
         encabezadoPrivado.setPadding(false);
 
-        // CAMBIADO: Columnas actualizadas para usar los helpers del modelo
         gridPrivados.setColumns("titulo", "remitenteNombre", "destinatariosNombres", "fechaHora");
         gridPrivados.getColumnByKey("titulo").setHeader("Título");
         gridPrivados.getColumnByKey("remitenteNombre").setHeader("Remitente");
         gridPrivados.getColumnByKey("destinatariosNombres").setHeader("Destinatarios");
         gridPrivados.getColumnByKey("fechaHora").setHeader("Fecha y Hora");
-        gridPrivados.setItems(foroService.listarPrivados());
-        gridPrivados.setWidthFull();
 
+        // --- INICIO DE CORRECCIÓN (Llamada inicial) ---
+        gridPrivados.setItems(foroService.listarPrivados(usuarioActual)); // <-- Pasamos el usuario
+        // --- FIN DE CORRECCIÓN ---
+
+        gridPrivados.setWidthFull();
         panelPrivado.add(encabezadoPrivado, gridPrivados);
         panelPrivado.setFlexGrow(1, gridPrivados);
 
-        // === DISTRIBUCIÓN IGUAL (50/50) ===
         setFlexGrow(1, foroPublico, panelPrivado);
         add(foroPublico, panelPrivado);
 
         // === ACTUALIZACIÓN AUTOMÁTICA ===
-        // (Tu código de PollListener se mantiene igual)
         UI ui = UI.getCurrent();
         getUI().ifPresent(current -> current.setPollInterval(2000));
         addAttachListener(event -> ui.addPollListener(ev -> {
             refrescarMensajesPublicos();
-            refrescarPrivados();
+            refrescarPrivados(); // <-- Este método ahora usará el usuario actual
         }));
 
         refrescarMensajesPublicos();
@@ -131,56 +117,40 @@ public class ForoView extends HorizontalLayout {
         gridPublico.setItems(foroService.listarMensajesPublicos());
     }
 
+    // --- INICIO DE CORRECCIÓN (Método de refresco) ---
     private void refrescarPrivados() {
-        gridPrivados.setItems(foroService.listarPrivados());
+        // Pasamos el usuario (que es un campo 'final' de la clase)
+        gridPrivados.setItems(foroService.listarPrivados(usuarioActual));
     }
+    // --- FIN DE CORRECCIÓN ---
 
-    // --- MÉTODO ACTUALIZADO ---
     private void abrirDialogoPrivado() {
+        // ... (Este método se mantiene igual) ...
         Dialog dialog = new Dialog();
         dialog.setHeaderTitle("Enviar Mensaje Privado");
-
-        // CAMBIADO: Ya no pedimos remitente, usamos el usuarioActual
-        // TextField remitente = new TextField("Remitente"); // <-- ELIMINADO
-
         TextField titulo = new TextField("Título");
-
-        // CAMBIADO: Usamos un selector múltiple de Usuarios
         MultiSelectComboBox<Usuario> destinatarios = new MultiSelectComboBox<>("Destinatarios");
         List<Usuario> todosMenosYo = usuarioRepository.findAll().stream()
                 .filter(u -> !u.getId().equals(usuarioActual.getId()))
                 .toList();
         destinatarios.setItems(todosMenosYo);
         destinatarios.setItemLabelGenerator(Usuario::getNombre);
-
         TextArea contenido = new TextArea("Mensaje");
         contenido.setWidth("400px");
-
         Button enviar = new Button("Enviar", e -> {
-
-            // Convertimos el Set<Usuario> a List<Usuario>
             List<Usuario> listaDest = new ArrayList<>(destinatarios.getValue());
-
             MensajePrivado msg = new MensajePrivado(
                     titulo.getValue(),
-                    usuarioActual, // <-- Usamos el usuario logueado
+                    usuarioActual,
                     listaDest,
                     contenido.getValue()
             );
-
-            foroService.enviarPrivado(msg); // <-- El servicio se encarga de notificar
-
-            // ELIMINADO: La notificación la gestiona el servicio, no la vista.
-            // String aviso = "✉️ Mensaje privado enviado: ...";
-            // notificaciones.agregarNotificacion(aviso);
-
+            foroService.enviarPrivado(msg);
             Notification notif = Notification.show("Mensaje privado enviado correctamente", 4000, Notification.Position.BOTTOM_CENTER);
             notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-
             dialog.close();
             refrescarPrivados();
         });
-
         Button cancelar = new Button("Cancelar", e -> dialog.close());
         dialog.add(new VerticalLayout(titulo, destinatarios, contenido, new HorizontalLayout(enviar, cancelar)));
         dialog.open();

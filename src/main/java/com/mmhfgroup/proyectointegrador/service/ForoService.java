@@ -16,7 +16,6 @@ import java.util.stream.Collectors;
 @Service
 public class ForoService {
 
-    // --- INYECTADO (NO MÁS 'static') ---
     private final MensajeRepository mensajeRepo;
     private final MensajePrivadoRepository mensajePrivadoRepo;
     private final NotificacionService notificacionService;
@@ -34,16 +33,12 @@ public class ForoService {
 
     // ---- Foro público (Punto 3) ----
 
-    /**
-     * Publica un mensaje y notifica a TODOS los demás usuarios.
-     */
     public void publicarMensaje(Usuario autor, String contenido) {
         if (autor != null && contenido != null && !contenido.isEmpty()) {
 
             Mensaje mensaje = new Mensaje(autor, contenido, LocalDateTime.now());
             mensajeRepo.save(mensaje);
 
-            // Notificar al resto de usuarios (Punto 3)
             List<Usuario> otrosUsuarios = usuarioRepository.findAll().stream()
                     .filter(u -> !u.getId().equals(autor.getId()))
                     .collect(Collectors.toList());
@@ -62,13 +57,9 @@ public class ForoService {
 
     // ---- Mensajes privados (Punto 2) ----
 
-    /**
-     * Envía un mensaje privado y notifica a los DESTINATARIOS.
-     */
     public void enviarPrivado(MensajePrivado mensaje) {
         mensajePrivadoRepo.save(mensaje);
 
-        // Notificar a todos los destinatarios (Punto 2)
         String msgNotif = "Recibiste un mensaje privado de: " + mensaje.getRemitente().getNombre();
 
         if(mensaje.getDestinatarios() != null) {
@@ -79,7 +70,14 @@ public class ForoService {
         }
     }
 
-    public List<MensajePrivado> listarPrivados() {
-        return mensajePrivadoRepo.findAll();
+    // --- INICIO DE CORRECCIÓN ---
+    /**
+     * Lista los mensajes privados DONDE el usuario sea remitente O destinatario.
+     * @param usuarioActual El usuario que está pidiendo ver sus mensajes.
+     */
+    public List<MensajePrivado> listarPrivados(Usuario usuarioActual) {
+        // Usamos el método correcto del repositorio en lugar de findAll()
+        return mensajePrivadoRepo.findByRemitenteOrDestinatariosContaining(usuarioActual);
     }
+    // --- FIN DE CORRECCIÓN ---
 }

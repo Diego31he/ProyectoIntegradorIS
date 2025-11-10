@@ -31,10 +31,10 @@ public class CatedraLayout extends AppLayout {
     }
 
     private void createHeader() {
+        // ... (Este método se mantiene igual) ...
         H1 logo = new H1("Plataforma Cátedra");
         logo.addClassNames("text-l", "m-m");
         HorizontalLayout header = new HorizontalLayout(new DrawerToggle(), logo);
-
         if (ViewModeUtil.isViewingAsStudent()) {
             Button returnButton = new Button("Volver a mi vista", e -> {
                 ViewModeUtil.disableViewAsStudent();
@@ -50,11 +50,9 @@ public class CatedraLayout extends AppLayout {
             viewAsEstudiante.setIcon(VaadinIcon.USER.create());
             header.add(viewAsEstudiante);
         }
-
         Button logoutButton = new Button("Cerrar Sesión", e -> securityService.logout());
         logoutButton.setIcon(VaadinIcon.SIGN_OUT.create());
         header.add(logoutButton);
-
         header.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
         header.expand(logo);
         header.setWidth("100%");
@@ -68,21 +66,24 @@ public class CatedraLayout extends AppLayout {
         tabs.add(
                 createTab(VaadinIcon.HOME, "Inicio", CatedraHomeView.class),
                 createTab(VaadinIcon.GROUP, "Equipos", EquiposCatedraView.class),
+
+                // --- INICIO DE CORRECCIÓN ---
+                createTab(VaadinIcon.CLIPBOARD_CHECK, "Auditorías", AuditoriasView.class), // <-- AÑADIDO
+                // --- FIN DE CORRECCIÓN ---
+
                 createTab(VaadinIcon.TASKS, "Zonas de Entrega", ZonasEntregaAdminView.class),
                 createTab(VaadinIcon.ARCHIVE, "Ver Entregas", CatedraEntregasView.class),
                 createTab(VaadinIcon.CALENDAR, "Calendario", CalendarioCatedraView.class),
                 createTab(VaadinIcon.COMMENTS, "Mensajería", MensajeriaCatedraView.class),
                 createTab(VaadinIcon.BELL, "Notificaciones", NotificacionesCatedraView.class),
-
-                // --- INICIO DE CORRECCIÓN (Petición 3) ---
-                createTab(VaadinIcon.USERS, "Participantes", ParticipantesCatedraView.class) // <-- AÑADIDO
-                // --- FIN DE CORRECCIÓN ---
+                createTab(VaadinIcon.USERS, "Participantes", ParticipantesCatedraView.class)
         );
         VerticalLayout drawerLayout = new VerticalLayout(tabs);
         addToDrawer(drawerLayout);
     }
 
     private Tab createTab(VaadinIcon viewIcon, String viewName, Class<? extends Component> navigationTarget) {
+        // ... (Este método se mantiene igual) ...
         RouterLink link = new RouterLink();
         link.setRoute(navigationTarget);
         Icon icon = viewIcon.create();
