@@ -1,43 +1,41 @@
 package com.mmhfgroup.proyectointegrador.view;
 
 import com.mmhfgroup.proyectointegrador.model.Notificacion;
-import com.mmhfgroup.proyectointegrador.model.Usuario; // <-- AÑADIDO
-import com.mmhfgroup.proyectointegrador.security.SecurityService; // <-- AÑADIDO
+import com.mmhfgroup.proyectointegrador.model.Usuario;
+import com.mmhfgroup.proyectointegrador.security.SecurityService;
 import com.mmhfgroup.proyectointegrador.service.NotificacionService;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H2;
+import com.vaadin.flow.component.icon.Icon;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.data.renderer.TextRenderer; // <-- AÑADIDO
+import com.vaadin.flow.data.renderer.TextRenderer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import jakarta.annotation.security.PermitAll;
-import org.springframework.beans.factory.annotation.Autowired; // <-- AÑADIDO
+import jakarta.annotation.security.RolesAllowed; // <-- Seguridad
+import org.springframework.beans.factory.annotation.Autowired;
 
-import java.time.format.DateTimeFormatter; // <-- AÑADIDO
-import java.time.format.FormatStyle; // <-- AÑADIDO
-import java.util.List; // <-- AÑADIDO
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
+import java.util.List;
 
-@PageTitle("Notificaciones")
-@Route(value = "notificaciones", layout = EstudianteLayout.class)
-@PermitAll
-public class NotificacionesView extends VerticalLayout {
+@PageTitle("Notificaciones de Cátedra")
+@Route(value = "catedra/notificaciones", layout = CatedraLayout.class) // <-- Layout de Cátedra
+@RolesAllowed({"CATEDRA", "ADMIN"}) // <-- Seguridad
+public class NotificacionesCatedraView extends VerticalLayout {
 
-    // --- INICIO DE CAMBIOS ---
     private final NotificacionService notificacionService;
     private final Usuario usuarioActual;
     private final Grid<Notificacion> grid = new Grid<>(Notificacion.class);
 
-    // Inyectamos los servicios, NO usamos "new"
     @Autowired
-    public NotificacionesView(NotificacionService notificacionService, SecurityService securityService) {
+    public NotificacionesCatedraView(NotificacionService notificacionService, SecurityService securityService) {
         this.notificacionService = notificacionService;
         this.usuarioActual = securityService.getAuthenticatedUser();
-        // --- FIN DE CAMBIOS ---
 
         setPadding(true);
         setSpacing(true);
-
-        add(new H2("Centro de Notificaciones"));
+        add(new H2("Centro de Notificaciones (Cátedra)"));
 
         configurarGrid();
         cargarNotificaciones();
@@ -51,14 +49,13 @@ public class NotificacionesView extends VerticalLayout {
     private void configurarGrid() {
         grid.setColumns(); // Limpiamos columnas automáticas
 
-        // Columna de estado (Leída/No Leída)
         grid.addComponentColumn(notif -> {
-            com.vaadin.flow.component.icon.Icon icon;
+            Icon icon;
             if (notif.isVista()) {
-                icon = com.vaadin.flow.component.icon.VaadinIcon.ENVELOPE_OPEN_O.create();
+                icon = VaadinIcon.ENVELOPE_OPEN_O.create();
                 icon.setColor("gray");
             } else {
-                icon = com.vaadin.flow.component.icon.VaadinIcon.ENVELOPE.create();
+                icon = VaadinIcon.ENVELOPE.create();
                 icon.setColor("var(--lumo-primary-color)");
             }
             return icon;
@@ -68,7 +65,6 @@ public class NotificacionesView extends VerticalLayout {
                 .setHeader("Mensaje")
                 .setFlexGrow(1);
 
-        // Formateador de fecha
         DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT);
         grid.addColumn(new TextRenderer<>(notif ->
                 notif.getFechaHora().format(formatter)
@@ -76,23 +72,17 @@ public class NotificacionesView extends VerticalLayout {
     }
 
     private void cargarNotificaciones() {
-        // Pedimos SÓLO las notificaciones del usuario actual
         List<Notificacion> misNotificaciones = notificacionService.listarNotificacionesPorUsuario(usuarioActual);
         grid.setItems(misNotificaciones);
     }
 
     private void marcarLeidas() {
-        // Obtenemos las notificaciones que están actualmente en el grid
-        List<Notificacion> notificacionesEnVista = notificacionService.listarNotificacionesPorUsuario(usuarioActual);
-
-        // Filtramos las que aún no están vistas
-        List<Notificacion> noVistas = notificacionesEnVista.stream()
+        List<Notificacion> noVistas = notificacionService.listarNotificacionesPorUsuario(usuarioActual).stream()
                 .filter(n -> !n.isVista())
                 .toList();
 
         if (!noVistas.isEmpty()) {
             notificacionService.marcarComoVistas(noVistas);
-            // Refrescamos el grid para que se vean los íconos actualizados
             grid.setItems(notificacionService.listarNotificacionesPorUsuario(usuarioActual));
         }
     }

@@ -11,5 +11,6 @@ public interface EstudianteRepository extends JpaRepository<Estudiante, Long> {
     @EntityGraph(attributePaths = "equipo")
     List<Estudiante> findAll(); // este traerá equipo pre-cargado
     List<Estudiante> findByEquipo_IdOrderByApellidoAscNombreAsc(Long equipoId);
+    List<Estudiante> findByEquipoIsNull(); // <-- AÑADIR ESTO
 }
 

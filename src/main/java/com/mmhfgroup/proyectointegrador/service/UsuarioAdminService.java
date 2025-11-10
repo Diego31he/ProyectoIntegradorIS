@@ -7,6 +7,8 @@ import com.mmhfgroup.proyectointegrador.repository.UsuarioRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List; // <-- IMPORT AÑADIDO
+
 @Service
 public class UsuarioAdminService {
 
@@ -15,6 +17,28 @@ public class UsuarioAdminService {
     public UsuarioAdminService(UsuarioRepository usuarioRepository) {
         this.usuarioRepository = usuarioRepository;
     }
+
+    // --- INICIO DE MÉTODOS AÑADIDOS ---
+
+    /**
+     * Devuelve una lista de todos los usuarios.
+     * Este era el método 'listarTodos' que faltaba.
+     */
+    @Transactional(readOnly = true)
+    public List<Usuario> listarTodos() {
+        return usuarioRepository.findAll();
+    }
+
+    /**
+     * Devuelve los roles disponibles para el ComboBox.
+     * Este era el método 'getAvailableRoles' que faltaba.
+     */
+    public List<String> getAvailableRoles() {
+        // Nombres de los roles que tu lógica 'cambiarRol' soporta
+        return List.of("ESTUDIANTE", "CATEDRA", "ADMIN");
+    }
+
+    // --- FIN DE MÉTODOS AÑADIDOS ---
 
     /**
      * Cambia el rol del usuario indicado.
@@ -42,7 +66,6 @@ public class UsuarioAdminService {
             usuarioRepository.save(c);
             return;
         }
-        // Estudiante -> Admin (pasa a Catedra con admin=true)
         Catedra nuevo = catedraFrom(u, true);
         replaceUser(u, nuevo);
     }
@@ -54,14 +77,12 @@ public class UsuarioAdminService {
             usuarioRepository.save(c);
             return;
         }
-        // Estudiante -> Cátedra (admin=false)
         Catedra nuevo = catedraFrom(u, false);
         replaceUser(u, nuevo);
     }
 
     private void toEstudiante(Usuario u) {
         if (u instanceof Estudiante) return; // ya es estudiante
-        // Cátedra/Admin -> Estudiante (sin equipo asignado)
         Estudiante nuevo = estudianteFrom(u);
         replaceUser(u, nuevo);
     }
@@ -74,7 +95,8 @@ public class UsuarioAdminService {
         c.setNombre(base.getNombre());
         c.setPassword(base.getPassword());
         c.setAdmin(admin);
-        // Copiá aquí otros campos comunes si existen (apellido, activo, etc.)
+        // Aquí puedes copiar más campos si es necesario (ej: apellido)
+        c.setApellido(base.getApellido());
         return c;
     }
 
@@ -83,19 +105,18 @@ public class UsuarioAdminService {
         e.setEmail(base.getEmail());
         e.setNombre(base.getNombre());
         e.setPassword(base.getPassword());
-        // No asignamos equipo aquí (queda "sin equipo asignado")
+        e.setApellido(base.getApellido());
+        // Aquí puedes copiar más campos si es necesario (ej: legajo)
+        if (base instanceof Catedra) {
+            // Si era cátedra, no tendrá legajo, inventamos uno
+            e.setLegajo("LEG-" + base.getId());
+        }
         return e;
     }
 
-    /**
-     * Reemplaza una entidad polimórfica por otra:
-     * - borra la anterior
-     * - guarda la nueva (con mismo email/nombre/password)
-     * IMPORTANTE: si tenés relaciones (FK) hacia Usuario,
-     * puede requerir migración adicional.
-     */
     private void replaceUser(Usuario viejo, Usuario nuevo) {
-        // Borramos el viejo y guardamos el nuevo
+        // Asignamos el ID del usuario viejo al nuevo para "reemplazarlo"
+        nuevo.setId(viejo.getId());
         usuarioRepository.delete(viejo);
         usuarioRepository.flush();
         usuarioRepository.save(nuevo);

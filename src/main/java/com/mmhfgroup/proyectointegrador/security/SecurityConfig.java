@@ -82,9 +82,9 @@ public class SecurityConfig extends VaadinWebSecurity {
                     String ctx = req.getContextPath(); // usualmente "", por si deployan con context-path
                     String target;
                     if (roles.contains("ROLE_ADMIN")) {
-                        target = ctx + "/admin/dashboard";
+                        target = ctx + "/admin";
                     } else if (roles.contains("ROLE_CATEDRA")) {
-                        target = ctx + "/catedra/dashboard";
+                        target = ctx + "/catedra";
                     } else {
                         target = ctx + "/"; // estudiantes
                     }

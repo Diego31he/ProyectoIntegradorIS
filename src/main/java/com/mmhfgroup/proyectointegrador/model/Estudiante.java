@@ -42,4 +42,7 @@ public class Estudiante extends Usuario {
     public void setEquipo(Equipo equipo) {
         this.equipo = equipo;
     }
+    public String getNombreCompleto(){
+        return getNombre() + " " + getApellido();
+    }
 }

@@ -1,6 +1,8 @@
 package com.mmhfgroup.proyectointegrador.model;
 
 import jakarta.persistence.*;
+import java.util.List; // <-- IMPORT AÑADIDO
+import java.util.Set; // <-- Opcional, pero Set es a veces mejor para relaciones
 
 @Entity
 @Table(
@@ -15,7 +17,6 @@ public class Equipo {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Número visible del equipo (1, 2, 3, ...). Único.
     @Column(nullable = false)
     private Integer numero;
 
@@ -25,6 +26,21 @@ public class Equipo {
     @Column
     private String auditor;
 
+    // --- INICIO DE CAMBIO ---
+
+    /**
+     * Define la lista de estudiantes que son integrantes de este equipo.
+     * "mappedBy = "equipo"" le dice a JPA que la entidad Estudiante
+     * es la dueña de la relación (a través de su campo "equipo").
+     * * FetchType.EAGER: Carga los integrantes automáticamente al cargar el equipo.
+     * (Puedes cambiarlo a LAZY si prefieres cargarlos manualmente).
+     */
+    @OneToMany(mappedBy = "equipo", fetch = FetchType.EAGER)
+    private Set<Estudiante> integrantes; // <-- CAMPO AÑADIDO (Set o List)
+
+    // --- FIN DE CAMBIO ---
+
+
     public Equipo() {}
 
     public Equipo(Integer numero, String nombre, String auditor) {
@@ -33,7 +49,8 @@ public class Equipo {
         this.auditor = auditor;
     }
 
-    // Getters / Setters
+    // --- Getters / Setters ---
+
     public Long getId() {
         return id;
     }
@@ -57,5 +74,15 @@ public class Equipo {
     }
     public void setAuditor(String auditor) {
         this.auditor = auditor;
+    }
+
+    // --- GETTER Y SETTER AÑADIDOS PARA 'integrantes' ---
+
+    public Set<Estudiante> getIntegrantes() {
+        return integrantes;
+    }
+
+    public void setIntegrantes(Set<Estudiante> integrantes) {
+        this.integrantes = integrantes;
     }
 }
