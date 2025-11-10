@@ -10,27 +10,25 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.*;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.savedrequest.NullRequestCache;
-import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 
 import java.util.List;
 
-@EnableWebSecurity
 @Configuration
 public class SecurityConfig extends VaadinWebSecurity {
 
+    // Encoder único del sistema
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    // Carga usuarios por EMAIL
+    // Cargamos usuario por EMAIL
     @Bean
     public UserDetailsService userDetailsService(UsuarioRepository usuarioRepository) {
         return (String usernameEmail) -> {
@@ -39,9 +37,11 @@ public class SecurityConfig extends VaadinWebSecurity {
 
             List<GrantedAuthority> auths;
             if (u instanceof Catedra c) {
-                auths = Boolean.TRUE.equals(c.isAdmin())
-                        ? List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))
-                        : List.of(new SimpleGrantedAuthority("ROLE_CATEDRA"));
+                if (Boolean.TRUE.equals(c.isAdmin())) {
+                    auths = List.of(new SimpleGrantedAuthority("ROLE_ADMIN"));
+                } else {
+                    auths = List.of(new SimpleGrantedAuthority("ROLE_CATEDRA"));
+                }
             } else if (u instanceof Estudiante) {
                 auths = List.of(new SimpleGrantedAuthority("ROLE_ESTUDIANTE"));
             } else {
@@ -49,7 +49,7 @@ public class SecurityConfig extends VaadinWebSecurity {
             }
 
             return User.withUsername(u.getEmail())
-                    .password(u.getPassword()) // contraseña ENCRIPTADA desde la BD
+                    .password(u.getPassword()) // ya encriptada en BD
                     .authorities(auths)
                     .build();
         };
@@ -65,27 +65,45 @@ public class SecurityConfig extends VaadinWebSecurity {
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
-        // Config base de Vaadin (recursos estáticos, rutas internas, etc.)
-        super.configure(http);
-
-        // Vista de login Vaadin
+        // Login view de Vaadin
         setLoginView(http, com.mmhfgroup.proyectointegrador.view.LoginView.class);
 
-        // 1) NO recordar la última URL (evita "/?continue")
-        http.requestCache(rc -> rc.requestCache(new NullRequestCache()));
+        // 🔒 Desactivar RequestCache para que NO use "?continue"
+        http.requestCache(c -> c.requestCache(new NullRequestCache()));
 
-        // 2) Al autenticar, SIEMPRE ir a /post-login (tu LoginRedirectView decide por rol)
-        http.formLogin(fl -> fl
-                .successHandler(new SimpleUrlAuthenticationSuccessHandler("/post-login"))
+        // Form login con success handler por ROL (sin SavedRequestAware)
+        http.formLogin(form -> form
+                .loginPage("/login")
+                .successHandler((req, res, auth) -> {
+                    var roles = auth.getAuthorities().stream()
+                            .map(GrantedAuthority::getAuthority)
+                            .toList();
+
+                    String ctx = req.getContextPath(); // usualmente "", por si deployan con context-path
+                    String target;
+                    if (roles.contains("ROLE_ADMIN")) {
+                        target = ctx + "/admin";
+                    } else if (roles.contains("ROLE_CATEDRA")) {
+                        target = ctx + "/catedra";
+                    } else {
+                        target = ctx + "/"; // estudiantes
+                    }
+
+                    // Redirección final
+                    res.sendRedirect(target);
+                })
                 .failureUrl("/login?error")
         );
 
-        // 3) Logout correcto (POST + CSRF) -> /login
-        http.logout(lo -> lo
+        // Logout claro y completo
+        http.logout(l -> l
                 .logoutUrl("/logout")
-                .logoutSuccessUrl("/login")
+                .logoutSuccessUrl("/login?logout")
                 .invalidateHttpSession(true)
                 .deleteCookies("JSESSIONID")
         );
+
+        // Llamar al super al final para que Vaadin aplique su config adicional
+        super.configure(http);
     }
 }

@@ -39,12 +39,12 @@ public class MainView extends VerticalLayout {
 
         // --- Íconos tipo “tarjeta cuadrada” ---
         contenedor.add(
-                crearOpcion(VaadinIcon.GROUP, "Equipos", "#2196F3", "equipos"),
-                crearOpcion(VaadinIcon.UPLOAD, "Entregas", "#9C27B0", "entregas"),
+                crearOpcion(VaadinIcon.GROUP, "Mi equipo", "#2196F3", "mi-equipo"),
                 crearOpcion(VaadinIcon.BELL, "Notificaciones", "#4CAF50", "notificaciones"),
                 crearOpcion(VaadinIcon.CALENDAR, "Calendario", "#FFC107", "calendario"),
                 crearOpcion(VaadinIcon.MAILBOX, "Mensajería", "#E91E63", "foro")
         );
+
 
         add(titulo, contenedor);
     }

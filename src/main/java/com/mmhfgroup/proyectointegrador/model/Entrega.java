@@ -1,48 +1,51 @@
 package com.mmhfgroup.proyectointegrador.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
-@Entity // <-- 1. Indicar que es una tabla de BD
+@Entity
+@Table(name = "entregas")
 public class Entrega {
 
-    @Id // <-- 2. Indicar que este es el ID
-    @GeneratedValue // <-- 3. Dejar que la BD genere el ID automáticamente
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private String nombreArchivo;
     private LocalDateTime fechaHora;
 
-    // 4. JPA necesita un constructor vacío
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "zona_entrega_id")
+    private ZonaEntrega zonaEntrega;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "autor_id")
+    private Usuario autor;
+
+    // ✔ Para que las entregas sean por equipo
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "equipo_id")
+    private Equipo equipo;
+
     public Entrega() {}
 
-    public Entrega(String nombreArchivo, LocalDateTime fechaHora) {
+    public Entrega(String nombreArchivo, LocalDateTime fechaHora, ZonaEntrega zonaEntrega, Usuario autor) {
         this.nombreArchivo = nombreArchivo;
         this.fechaHora = fechaHora;
-    }
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
+        this.zonaEntrega = zonaEntrega;
+        this.autor = autor;
     }
 
-    public String getNombreArchivo() {
-        return nombreArchivo;
-    }
-
-    public void setNombreArchivo(String nombreArchivo) {
-        this.nombreArchivo = nombreArchivo;
-    }
-
-    public LocalDateTime getFechaHora() {
-        return fechaHora;
-    }
-
-    public void setFechaHora(LocalDateTime fechaHora) {
-        this.fechaHora = fechaHora;
-    }
+    // Getters/Setters
+    public Long getId() { return id; }
+    public String getNombreArchivo() { return nombreArchivo; }
+    public void setNombreArchivo(String nombreArchivo) { this.nombreArchivo = nombreArchivo; }
+    public LocalDateTime getFechaHora() { return fechaHora; }
+    public void setFechaHora(LocalDateTime fechaHora) { this.fechaHora = fechaHora; }
+    public ZonaEntrega getZonaEntrega() { return zonaEntrega; }
+    public void setZonaEntrega(ZonaEntrega zonaEntrega) { this.zonaEntrega = zonaEntrega; }
+    public Usuario getAutor() { return autor; }
+    public void setAutor(Usuario autor) { this.autor = autor; }
+    public Equipo getEquipo() { return equipo; }
+    public void setEquipo(Equipo equipo) { this.equipo = equipo; }
 }

@@ -47,7 +47,9 @@ public final class ViewModeUtil {
                 .collect(Collectors.toSet());
 
         if (roles.contains("ROLE_ADMIN")) {
-            ui.navigate("admin/dashboard");
+            // --- CORRECCIÓN ---
+            ui.navigate("admin"); // <-- Ruta corregida (antes "admin/dashboard")
+            // --- FIN CORRECCIÓN ---
         } else if (roles.contains("ROLE_CATEDRA")) {
             ui.navigate("catedra");
         } else {
