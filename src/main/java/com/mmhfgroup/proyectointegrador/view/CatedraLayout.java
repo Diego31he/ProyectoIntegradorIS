@@ -48,7 +48,7 @@ public class CatedraLayout extends AppLayout {
         textos.setSpacing(false);
         textos.setAlignItems(Alignment.START);
 
-        Button logout = new Button("Salir", e -> getUI().ifPresent(ui -> ui.getPage().setLocation("/logout")));
+        Button logout = new Button("Salir", e -> getUI().ifPresent(ui -> ui.getPage().setLocation("/login")));
         logout.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
         logout.getStyle().set("color", "white");
 

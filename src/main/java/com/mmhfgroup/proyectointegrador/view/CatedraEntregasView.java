@@ -8,9 +8,10 @@ import com.mmhfgroup.proyectointegrador.model.ZonaEntrega;
 import com.mmhfgroup.proyectointegrador.repository.EntregaRepository;
 import com.mmhfgroup.proyectointegrador.repository.SeccionRepository;
 import com.mmhfgroup.proyectointegrador.repository.ZonaEntregaRepository;
-import com.vaadin.flow.component.Component;
+
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.datepicker.DatePicker;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H2;
@@ -18,12 +19,10 @@ import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
-import com.vaadin.flow.component.splitlayout.SplitLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
-import java.util.function.Function;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
@@ -32,13 +31,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/**
- * Vista Cátedra simplificada:
- * - Panel izquierdo: Sección + Zonas (crear rápido)
- * - Panel derecho: Entregas de la zona seleccionada
- */
 @PageTitle("Entregas (Cátedra)")
 @Route(value = "catedra/entregas", layout = CatedraLayout.class)
 @RolesAllowed({"ROLE_CATEDRA", "ROLE_ADMIN"})
@@ -48,11 +43,11 @@ public class CatedraEntregasView extends VerticalLayout {
     private final ZonaEntregaRepository zonaRepo;
     private final EntregaRepository entregaRepo;
 
-    // Selecciones
+    // Filtros
     private final Select<Seccion> selSeccion = new Select<>();
     private final Select<ZonaEntrega> selZona = new Select<>();
 
-    // Grid plano (DTO) para evitar LAZY en UI
+    // Grid (usamos DTO plano para evitar problemas de LAZY al render)
     private final Grid<EntregaRow> grid = new Grid<>(EntregaRow.class, false);
 
     public CatedraEntregasView(SeccionRepository seccionRepo,
@@ -66,61 +61,24 @@ public class CatedraEntregasView extends VerticalLayout {
         setPadding(true);
         setSpacing(true);
 
-        add(new H2("Gestión de Entregas · Cátedra"));
+        add(new H2("Entregas – Cátedra"));
 
-        // Split master-detail (izq: selección/creación; der: entregas)
-        SplitLayout split = new SplitLayout(buildLeftPanel(), buildRightPanel());
-        split.setSizeFull();
-        split.setSplitterPosition(40);
-        add(split);
+        HorizontalLayout filtros = buildFilterBar();
+        filtros.setWidthFull();
+        add(filtros);
+
+        configGrid();
+        add(grid);
+        expand(grid);
 
         // Carga inicial
         safeRefreshAll();
     }
 
-    // ===================== Panels =====================
+    // ===================== UI =====================
 
-    private Component buildLeftPanel() {
-        VerticalLayout left = new VerticalLayout();
-        left.setPadding(true);
-        left.setSpacing(true);
-        left.setSizeFull();
-
-        // Selectores
-        HorizontalLayout selectors = buildSelectors();
-        selectors.setWidthFull();
-
-        // Creación rápida
-        Component quickCreate = buildQuickCreateForms();
-
-        left.add(new H3("Seleccionar contexto"), selectors, quickCreate);
-        return left;
-    }
-
-    private Component buildRightPanel() {
-        VerticalLayout right = new VerticalLayout();
-        right.setPadding(true);
-        right.setSpacing(true);
-        right.setSizeFull();
-
-        // Grid columnas
-        grid.addColumn(EntregaRow::archivo).setHeader("Archivo").setAutoWidth(true).setResizable(true);
-        grid.addColumn(EntregaRow::fecha).setHeader("Fecha").setAutoWidth(true).setResizable(true);
-        grid.addColumn(EntregaRow::autor).setHeader("Autor").setAutoWidth(true).setResizable(true);
-        grid.addColumn(EntregaRow::equipo).setHeader("Equipo").setAutoWidth(true).setResizable(true);
-        grid.setHeight("550px");
-
-        Button btnRefrescar = new Button("Refrescar entregas", e -> safeRefreshEntregas());
-        btnRefrescar.setWidthFull();
-
-        right.add(new H3("Entregas de la zona seleccionada"), grid, btnRefrescar);
-        right.setFlexGrow(1, grid);
-        return right;
-    }
-
-    // ===================== Builders =====================
-
-    private HorizontalLayout buildSelectors() {
+    private HorizontalLayout buildFilterBar() {
+        // Sección
         selSeccion.setLabel("Sección");
         selSeccion.setItemLabelGenerator(s -> {
             if (s == null) return "—";
@@ -136,7 +94,8 @@ public class CatedraEntregasView extends VerticalLayout {
             }
         });
 
-        selZona.setLabel("Zona de entrega");
+        // Zona
+        selZona.setLabel("Zona");
         selZona.setItemLabelGenerator(z -> {
             if (z == null) return "—";
             String titulo = Optional.ofNullable(z.getTitulo()).orElse("").trim();
@@ -147,83 +106,99 @@ public class CatedraEntregasView extends VerticalLayout {
         });
         selZona.addValueChangeListener(e -> safeRefreshEntregas());
 
-        Button btnRefrescarTodo = new Button("Refrescar todo", click -> safeRefreshAll());
+        // Acciones
+        Button btnRefrescar = new Button("Refrescar", e -> safeRefreshAll());
+        Button btnNuevaSeccion = new Button("Nueva sección", e -> openNuevaSeccionDialog());
+        Button btnNuevaZona = new Button("Nueva zona", e -> openNuevaZonaDialog());
 
-        HorizontalLayout hl = new HorizontalLayout(selSeccion, selZona, btnRefrescarTodo);
+        HorizontalLayout hl = new HorizontalLayout(selSeccion, selZona, btnRefrescar, btnNuevaSeccion, btnNuevaZona);
         hl.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.END);
         hl.setSpacing(true);
+        // Si tu versión de Vaadin lo soporta, habilita wrap para evitar superposición:
+        try { hl.setWrap(true); } catch (NoSuchMethodError ignored) {}
         return hl;
     }
 
-    private Component buildQuickCreateForms() {
-        HorizontalLayout container = new HorizontalLayout();
-        container.setWidthFull();
-        container.setSpacing(true);
+    private void configGrid() {
+        grid.removeAllColumns();
+        grid.addColumn(EntregaRow::archivo).setHeader("Archivo").setAutoWidth(true).setResizable(true);
+        grid.addColumn(EntregaRow::fecha).setHeader("Fecha").setAutoWidth(true).setResizable(true);
+        grid.addColumn(EntregaRow::autor).setHeader("Autor").setAutoWidth(true).setResizable(true);
+        grid.addColumn(EntregaRow::equipo).setHeader("Equipo").setAutoWidth(true).setResizable(true);
+        grid.setHeight("70vh");
+    }
 
-        // Crear Sección
-        FormLayout formSeccion = new FormLayout();
-        formSeccion.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
-        TextField tituloSec = new TextField("Título");
-        TextArea descSec = new TextArea("Descripción");
-        descSec.setHeight("100px");
-        Button crearSeccion = new Button("Crear sección", e -> {
-            String t = Optional.ofNullable(tituloSec.getValue()).orElse("").trim();
+    private void openNuevaSeccionDialog() {
+        Dialog d = new Dialog();
+        d.setHeaderTitle("Nueva sección");
+
+        TextField titulo = new TextField("Título");
+        TextArea desc = new TextArea("Descripción");
+        desc.setHeight("120px");
+
+        Button guardar = new Button("Guardar", ev -> {
+            String t = Optional.ofNullable(titulo.getValue()).orElse("").trim();
             if (t.isBlank()) { Notification.show("Ingrese un título"); return; }
             try {
                 Seccion s = new Seccion();
                 s.setTitulo(t);
-                s.setDescripcion(descSec.getValue());
+                s.setDescripcion(desc.getValue());
                 seccionRepo.save(s);
-                tituloSec.clear(); descSec.clear();
-                safeRefreshSecciones(/*preserve*/ true);
+                d.close();
+                safeRefreshSecciones(true);
                 Notification.show("Sección creada");
             } catch (Exception ex) {
                 notifyError("No se pudo crear la sección", ex);
             }
         });
-        formSeccion.add(tituloSec, descSec, crearSeccion);
-        VerticalLayout cardSeccion = new VerticalLayout(new H3("Nueva Sección"), formSeccion);
-        cardSeccion.setWidthFull();
+        Button cancelar = new Button("Cancelar", ev -> d.close());
 
-        // Crear Zona
-        FormLayout formZona = new FormLayout();
-        formZona.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
-        TextField tituloZona = new TextField("Título");
-        DatePicker fechaCierre = new DatePicker("Fecha límite (opcional)");
-        Button crearZona = new Button("Crear zona", e -> {
-            Seccion sec = selSeccion.getValue();
-            if (sec == null) { Notification.show("Seleccione primero una sección"); return; }
-            String tz = Optional.ofNullable(tituloZona.getValue()).orElse("").trim();
-            if (tz.isBlank()) { Notification.show("Ingrese un título para la zona"); return; }
+        d.add(new FormLayout(titulo, desc));
+        d.getFooter().add(new HorizontalLayout(cancelar, guardar));
+        d.open();
+    }
+
+    private void openNuevaZonaDialog() {
+        if (selSeccion.getValue() == null) {
+            Notification.show("Seleccione una sección primero");
+            return;
+        }
+        Dialog d = new Dialog();
+        d.setHeaderTitle("Nueva zona");
+
+        TextField titulo = new TextField("Título");
+        DatePicker fecha = new DatePicker("Fecha límite (opcional)");
+
+        Button guardar = new Button("Guardar", ev -> {
+            String tz = Optional.ofNullable(titulo.getValue()).orElse("").trim();
+            if (tz.isBlank()) { Notification.show("Ingrese un título"); return; }
             try {
                 ZonaEntrega z = new ZonaEntrega();
                 z.setTitulo(tz);
-                LocalDate f = fechaCierre.getValue();
+                LocalDate f = fecha.getValue();
                 if (f != null) z.setFechaCierre(f);
-                z.setSeccion(sec);
+                z.setSeccion(selSeccion.getValue());
                 zonaRepo.save(z);
-                tituloZona.clear(); fechaCierre.clear();
-                refreshZonas(sec, /*preserve*/ true);
+                d.close();
+                refreshZonas(selSeccion.getValue(), true);
                 Notification.show("Zona creada");
             } catch (Exception ex) {
                 notifyError("No se pudo crear la zona", ex);
             }
         });
-        formZona.add(tituloZona, fechaCierre, crearZona);
-        VerticalLayout cardZona = new VerticalLayout(new H3("Nueva Zona (en la sección seleccionada)"), formZona);
-        cardZona.setWidthFull();
+        Button cancelar = new Button("Cancelar", ev -> d.close());
 
-        container.add(cardSeccion, cardZona);
-        container.setFlexGrow(1, cardSeccion, cardZona);
-        return container;
+        d.add(new FormLayout(titulo, fecha));
+        d.getFooter().add(new HorizontalLayout(cancelar, guardar));
+        d.open();
     }
 
-    // ===================== Data loading (seguros) =====================
+    // ===================== Data loading =====================
 
     private void safeRefreshAll() {
         try {
             safeRefreshSecciones(/*preserve*/ true);
-            safeRefreshEntregas(); // si hay zona seleccionada
+            safeRefreshEntregas();
             Notification.show("Datos actualizados");
         } catch (Exception ex) {
             notifyError("No se pudieron actualizar los datos", ex);
@@ -282,48 +257,55 @@ public class CatedraEntregasView extends VerticalLayout {
         }
     }
 
-    // ===================== Core: evitar LAZY en UI =====================
-
     /**
-     * Carga Entregas y las mapea a un DTO plano con @Transactional (sesión abierta).
-     * Así evitamos LazyInitializationException al renderizar el Grid.
+     * Carga Entregas y las mapea a DTO plano dentro de una transacción de solo lectura.
+     * Evita LazyInitializationException en el Grid y permite formatear campos null-safe.
      */
-    @Transactional(readOnly = true)
     protected List<EntregaRow> loadEntregaRows(Long zonaId) {
-        // Si querés, podés cambiar a un método con fetch-join (ver nota al final)
-        List<Entrega> entregas = entregaRepo.findByZonaEntregaId(zonaId);
+        List<Entrega> entregas = entregaRepo.findByZonaEntregaIdWithAutorEquipo(zonaId);
+        return mapRows(entregas);
+    }
 
-        return entregas.stream().map(e -> {
-            String archivo = Optional.ofNullable(e.getNombreArchivo()).orElse("—");
-            String fecha = Optional.ofNullable(e.getFechaHora()).map(Object::toString).orElse("—");
-
-            String autor = "—";
-            String equipo = "—";
-            try {
-                if (e.getAutor() != null) {
-                    String nombre = Optional.ofNullable(e.getAutor().getNombre()).orElse("").trim();
-                    String apellido = Optional.ofNullable(e.getAutor().getApellido()).orElse("").trim();
-                    String full = (nombre + " " + apellido).trim();
-                    autor = full.isBlank()
-                            ? Optional.ofNullable(e.getAutor().getEmail()).orElse("—")
-                            : full;
-
-                    if (e.getAutor() instanceof Estudiante est) {
-                        Equipo eq = est.getEquipo(); // inicializado dentro de la transacción
-                        if (eq != null && eq.getNumero() != null) {
-                            equipo = "Eq " + eq.getNumero();
-                        }
-                    }
-                }
-            } catch (Exception ignored) {
-                // a prueba de pereza extrema :)
-            }
-
-            return new EntregaRow(archivo, fecha, autor, equipo);
-        }).collect(Collectors.toList());
+    private List<EntregaRow> mapRows(List<Entrega> entregas) {
+        return entregas.stream()
+                .map(e -> new EntregaRow(
+                        Optional.ofNullable(e.getNombreArchivo()).orElse("—"),
+                        fmtFecha(e.getFechaHora()),
+                        nombreAutor(e),
+                        equipoAutor(e)
+                ))
+                .collect(Collectors.toList());
     }
 
     // ===================== Helpers =====================
+
+    private static String fmtFecha(Object dt) {
+        return (dt == null) ? "—" : dt.toString();
+    }
+
+    private static String nombreAutor(Entrega e) {
+        if (e.getAutor() == null) return "—";
+        String nombre = Optional.ofNullable(e.getAutor().getNombre()).orElse("").trim();
+        String apellido = Optional.ofNullable(e.getAutor().getApellido()).orElse("").trim();
+        String full = (nombre + " " + apellido).trim();
+        return full.isBlank()
+                ? Optional.ofNullable(e.getAutor().getEmail()).orElse("—")
+                : full;
+    }
+
+    private static String equipoAutor(Entrega e) {
+        try {
+            if (e.getAutor() instanceof Estudiante est) {
+                Equipo eq = est.getEquipo();
+                if (eq != null) {
+                    if (eq.getNumero() != null) return "Eq " + eq.getNumero();
+                    String nombreEq = Optional.ofNullable(eq.getNombre()).orElse("").trim();
+                    if (!nombreEq.isBlank()) return nombreEq;
+                }
+            }
+        } catch (Exception ignored) {}
+        return "—";
+    }
 
     private void notifyError(String msg, Exception ex) {
         Notification.show(msg, 4000, Notification.Position.TOP_CENTER);
@@ -348,9 +330,4 @@ public class CatedraEntregasView extends VerticalLayout {
 
     // DTO plano para el Grid
     public record EntregaRow(String archivo, String fecha, String autor, String equipo) {}
-
-    // Extensiones para tratar Seccion/Zona como HasId
-    static {
-        // Nada que ejecutar; sólo indicativo de que Seccion y ZonaEntrega ya tienen getId()
-    }
 }
