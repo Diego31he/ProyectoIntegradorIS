@@ -11,32 +11,41 @@ public class Entrega {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
     private String nombreArchivo;
-
-    @Column(nullable = false)
     private LocalDateTime fechaHora;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "equipo_id", nullable = false, foreignKey = @ForeignKey(name = "fk_entrega_equipo"))
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "zona_entrega_id")
+    private ZonaEntrega zonaEntrega;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "autor_id")
+    private Usuario autor;
+
+    // ✔ Para que las entregas sean por equipo
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "equipo_id")
     private Equipo equipo;
 
     public Entrega() {}
 
-    public Entrega(String nombreArchivo, LocalDateTime fechaHora, Equipo equipo) {
+    public Entrega(String nombreArchivo, LocalDateTime fechaHora, ZonaEntrega zonaEntrega, Usuario autor) {
         this.nombreArchivo = nombreArchivo;
         this.fechaHora = fechaHora;
-        this.equipo = equipo;
+        this.zonaEntrega = zonaEntrega;
+        this.autor = autor;
     }
 
+    // Getters/Setters
     public Long getId() { return id; }
-
     public String getNombreArchivo() { return nombreArchivo; }
     public void setNombreArchivo(String nombreArchivo) { this.nombreArchivo = nombreArchivo; }
-
     public LocalDateTime getFechaHora() { return fechaHora; }
     public void setFechaHora(LocalDateTime fechaHora) { this.fechaHora = fechaHora; }
-
+    public ZonaEntrega getZonaEntrega() { return zonaEntrega; }
+    public void setZonaEntrega(ZonaEntrega zonaEntrega) { this.zonaEntrega = zonaEntrega; }
+    public Usuario getAutor() { return autor; }
+    public void setAutor(Usuario autor) { this.autor = autor; }
     public Equipo getEquipo() { return equipo; }
     public void setEquipo(Equipo equipo) { this.equipo = equipo; }
 }

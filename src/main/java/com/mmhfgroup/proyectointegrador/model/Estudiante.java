@@ -16,7 +16,7 @@ public class Estudiante extends Usuario {
 
     // null = sin equipo asignado
     // EAGER para evitar LazyInitializationException al renderizar en el Grid de Vaadin
-    @ManyToOne(fetch = FetchType.EAGER, optional = true)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "equipo_id", foreignKey = @ForeignKey(name = "fk_estudiante_equipo"))
     private Equipo equipo;
 

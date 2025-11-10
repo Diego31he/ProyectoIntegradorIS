@@ -71,16 +71,13 @@ public class CatedraLayout extends AppLayout {
         menu.setSizeFull();
 
         // --- Navegación Cátedra ---
-        VerticalLayout navLinks = new VerticalLayout(
-                new RouterLink("Inicio", CatedraHomeView.class),       // <--- ahora va a la nueva pantalla
-                new RouterLink("Equipos", EquiposView.class),
-                new RouterLink("Entregas (Cátedra)", EntregasView.class),
-                new RouterLink("Calendario", CalendarioView.class),
-                new RouterLink("Foro", ForoView.class),
-                new RouterLink("Notificaciones", NotificacionesView.class)
-        );
-        navLinks.setPadding(false);
-        navLinks.setSpacing(false);
+                menu.add(
+                        new RouterLink("Equipos", EquiposView.class),
+                        new RouterLink("Entregas (Cátedra)", CatedraEntregasView.class), // <-- aquí
+                        new RouterLink("Calendario", CalendarioView.class),
+                        new RouterLink("Foro", ForoView.class),
+                        new RouterLink("Notificaciones", NotificacionesView.class)
+                );
 
         // Botón "Ver como Estudiante"
         Button verComoEst = new Button("Ver como Estudiante", e -> {
@@ -95,7 +92,7 @@ public class CatedraLayout extends AppLayout {
 
         Details nosotrosDetails = createNosotrosDetails();
 
-        menu.add(navLinks, verComoEst, spacer, nosotrosDetails);
+        menu.add(verComoEst, spacer, nosotrosDetails);
         addToDrawer(menu);
     }
 

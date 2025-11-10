@@ -1,274 +1,297 @@
 package com.mmhfgroup.proyectointegrador.view;
 
-import com.mmhfgroup.proyectointegrador.model.Entrega;
-import com.mmhfgroup.proyectointegrador.model.Equipo;
-import com.mmhfgroup.proyectointegrador.model.Estudiante;
-import com.mmhfgroup.proyectointegrador.model.Usuario;
-import com.mmhfgroup.proyectointegrador.repository.UsuarioRepository;
+import com.mmhfgroup.proyectointegrador.model.*;
+import com.mmhfgroup.proyectointegrador.repository.SeccionRepository;
+import com.mmhfgroup.proyectointegrador.security.SecurityService;
 import com.mmhfgroup.proyectointegrador.service.EntregaService;
-import com.mmhfgroup.proyectointegrador.service.EquipoService;
-import com.vaadin.flow.component.AttachEvent;
-import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.grid.Grid;
-import com.vaadin.flow.component.html.Div;
-import com.vaadin.flow.component.html.H2;
-import com.vaadin.flow.component.html.H3;
-import com.vaadin.flow.component.html.Paragraph;
+import com.mmhfgroup.proyectointegrador.service.NotificacionService;
+import com.vaadin.flow.component.Component; // <-- IMPORT CLAVE
+import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
-import com.vaadin.flow.component.notification.NotificationVariant;
+import com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode; // <-- IMPORT ENUM
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.upload.Upload;
-import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
+import com.vaadin.flow.component.upload.receivers.MultiFileMemoryBuffer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import jakarta.annotation.security.PermitAll;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import jakarta.annotation.security.RolesAllowed;
 
 import java.io.InputStream;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
+@PageTitle("Mi equipo")
 @Route(value = "mi-equipo", layout = EstudianteLayout.class)
-@PageTitle("Mi equipo | Proyecto Integrador")
-@PermitAll
+@RolesAllowed({"ROLE_ESTUDIANTE","ROLE_CATEDRA","ROLE_ADMIN"})
 public class MiEquipoView extends VerticalLayout {
 
-    private final UsuarioRepository usuarioRepo;
-    private final EquipoService equipoService;
     private final EntregaService entregaService;
+    private final SeccionRepository seccionRepo;
+    private final SecurityService securityService;
+    private final NotificacionService notificacionService;
 
-    // Secciones
-    private final VerticalLayout entregasLayout = new VerticalLayout();
-    private final VerticalLayout auditoriasLayout = new VerticalLayout();
+    private final VerticalLayout entregasSection = new VerticalLayout();
+    private final VerticalLayout auditoriasSection = new VerticalLayout();
 
-    // Grids
-    private final Grid<Estudiante> gridIntegrantes = new Grid<>(Estudiante.class, false);
-    private final Grid<Entrega> gridEntregas = new Grid<>(Entrega.class, false);
-
-    // Estado
-    private Equipo equipoActual;
-    private Estudiante yo;
-
-    public MiEquipoView(UsuarioRepository usuarioRepo,
-                        EquipoService equipoService,
-                        EntregaService entregaService) {
-        this.usuarioRepo = usuarioRepo;
-        this.equipoService = equipoService;
+    public MiEquipoView(EntregaService entregaService,
+                        SeccionRepository seccionRepo,
+                        SecurityService securityService,
+                        NotificacionService notificacionService) {
         this.entregaService = entregaService;
+        this.seccionRepo = seccionRepo;
+        this.securityService = securityService;
+        this.notificacionService = notificacionService;
 
+        setSizeFull();
         setPadding(true);
         setSpacing(true);
-        setSizeFull();
 
-        add(new H2("Mi equipo"));
+        Usuario actual = securityService.getAuthenticatedUser();
+        Equipo equipo = (actual instanceof Estudiante est) ? est.getEquipo() : null;
 
-        // Usuario autenticado
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String email = (auth != null) ? auth.getName() : null;
+        add(buildHeader(equipo));
+        add(buildActionButtons(equipo));
 
-        if (email == null) {
-            Notification.show("No se pudo identificar al usuario actual.", 4000, Notification.Position.MIDDLE);
-            add(new Paragraph("Error de autenticación."));
-            return;
+        entregasSection.setVisible(false);
+        auditoriasSection.setVisible(false);
+
+        buildEntregasSection(equipo);
+        buildAuditoriasSection(equipo);
+
+        add(entregasSection, auditoriasSection);
+
+        if (equipo == null) {
+            Notification.show("No tenés equipo asignado. Pedí a cátedra que te asigne uno.",
+                    4000, Notification.Position.TOP_CENTER);
         }
-
-        Optional<Usuario> maybeUser = usuarioRepo.findByEmail(email);
-        if (maybeUser.isEmpty() || !(maybeUser.get() instanceof Estudiante)) {
-            add(new Paragraph("Tu usuario no está registrado como Estudiante."));
-            return;
-        }
-        yo = (Estudiante) maybeUser.get();
-        equipoActual = yo.getEquipo();
-
-        if (equipoActual == null) {
-            Paragraph header = new Paragraph("Sin equipo asignado");
-            header.getStyle().set("font-weight", "600");
-            add(header);
-
-            add(new Paragraph("Cuando tengas equipo asignado, acá vas a ver: número, nombre, auditor, integrantes y entregas."));
-            HorizontalLayout atajos = new HorizontalLayout(
-                    crearBotonAtajo("Notificaciones", VaadinIcon.BELL, "notificaciones"),
-                    crearBotonAtajo("Foro", VaadinIcon.MAILBOX, "foro")
-            );
-            add(atajos);
-            return;
-        }
-
-        // Cabecera con datos del equipo
-        String auditor = (equipoActual.getAuditor() == null || equipoActual.getAuditor().isBlank()) ? "—" : equipoActual.getAuditor();
-        Paragraph header = new Paragraph("Equipo N° " + equipoActual.getNumero() + " — " + equipoActual.getNombre() + " (Auditor: " + auditor + ")");
-        header.getStyle().set("font-weight", "600");
-        add(header);
-
-        // === Botones grandes “Entregas / Auditorías” (estilo inicio) ===
-        HorizontalLayout botonesAcceso = new HorizontalLayout();
-        botonesAcceso.setWidthFull();
-        botonesAcceso.setSpacing(true);
-        botonesAcceso.getStyle()
-                .set("margin-bottom", "var(--lumo-space-l)")
-                .set("justify-content", "center");
-
-        Button btnEntregas = new Button("Entregas", new Icon(VaadinIcon.CLIPBOARD_CHECK));
-        btnEntregas.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_LARGE);
-        btnEntregas.getStyle()
-                .set("width", "220px")
-                .set("height", "80px")
-                .set("font-size", "18px");
-
-        Button btnAuditorias = new Button("Auditorías", new Icon(VaadinIcon.SEARCH));
-        btnAuditorias.addThemeVariants(ButtonVariant.LUMO_CONTRAST, ButtonVariant.LUMO_LARGE);
-        btnAuditorias.getStyle()
-                .set("width", "220px")
-                .set("height", "80px")
-                .set("font-size", "18px");
-
-        btnEntregas.addClickListener(e -> {
-            entregasLayout.setVisible(true);
-            auditoriasLayout.setVisible(false);
-        });
-        btnAuditorias.addClickListener(e -> {
-            entregasLayout.setVisible(false);
-            auditoriasLayout.setVisible(true);
-        });
-
-        botonesAcceso.add(btnEntregas, btnAuditorias);
-        add(botonesAcceso);
-
-        // === Integrantes del equipo ===
-        List<Estudiante> integrantes = equipoService.integrantesDe(equipoActual.getId());
-        gridIntegrantes.addColumn(Estudiante::getApellido).setHeader("Apellido").setAutoWidth(true).setSortable(true);
-        gridIntegrantes.addColumn(Estudiante::getNombre).setHeader("Nombre").setAutoWidth(true).setSortable(true);
-        gridIntegrantes.addColumn(Estudiante::getEmail).setHeader("Email").setAutoWidth(true);
-        gridIntegrantes.addColumn(Estudiante::getLegajo).setHeader("Legajo").setAutoWidth(true);
-        gridIntegrantes.setItems(integrantes);
-        gridIntegrantes.setWidthFull();
-        gridIntegrantes.setHeight("40vh");
-
-        add(new H3("Integrantes"), gridIntegrantes);
-
-        // === Sección ENTREGAS (subida + grid) ===
-        construirSeccionEntregas();
-
-        // === Sección AUDITORÍAS (placeholder para poblar luego) ===
-        construirSeccionAuditorias();
-
-        // Visibilidad inicial
-        entregasLayout.setVisible(true);
-        auditoriasLayout.setVisible(false);
-
-        add(entregasLayout, auditoriasLayout);
-        setFlexGrow(1, entregasLayout, auditoriasLayout);
     }
 
-    private void construirSeccionEntregas() {
-        entregasLayout.setWidthFull();
-        entregasLayout.setSpacing(true);
+    private Component buildHeader(Equipo equipo) {
+        H2 titulo = new H2("Mi equipo");
+        titulo.getStyle().set("margin-bottom", "0");
 
-        entregasLayout.add(new H3("Entregas del equipo"));
-
-        // Upload grande y claro
-        MemoryBuffer buffer = new MemoryBuffer();
-        Upload upload = new Upload(buffer);
-
-        Button seleccionarBtn = new Button("Seleccionar archivo");
-        seleccionarBtn.getStyle()
-                .set("font-weight", "600")
-                .set("padding", "0.4rem 1rem");
-        upload.setUploadButton(seleccionarBtn);
-
-        upload.setDropLabel(new com.vaadin.flow.component.html.Span(
-                "Arrastrá tu archivo aquí o hacé clic en “Seleccionar archivo”"
-        ));
-        upload.setAcceptedFileTypes(".pdf", ".docx", ".jpg", ".png");
-        upload.setMaxFiles(1);
-        upload.setAutoUpload(true);
-
-        upload.setWidthFull();
-        upload.getElement().getStyle()
-                .set("border", "2px dashed var(--lumo-primary-color)")
-                .set("border-radius", "10px")
-                .set("padding", "var(--lumo-space-l)")
-                .set("margin-bottom", "var(--lumo-space-m)");
-        // upload.getElement().getStyle().set("min-height", "160px"); // opcional, más alto
-
-        upload.addSucceededListener(ev -> {
-            String nombreArchivo = ev.getFileName();
-            try (InputStream is = buffer.getInputStream()) {
-                // Si luego guardás el archivo real, hacelo aquí con 'is'
-                entregaService.registrarEntrega(equipoActual, nombreArchivo);
-                Notification n = Notification.show("Entrega registrada: " + nombreArchivo, 3000, Notification.Position.BOTTOM_CENTER);
-                n.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-                refrescarEntregas();
-            } catch (Exception ex) {
-                Notification n = Notification.show("Error al registrar la entrega: " + ex.getMessage(), 4000, Notification.Position.MIDDLE);
-                n.addThemeVariants(NotificationVariant.LUMO_ERROR);
-            }
-        });
-
-        Div uploadWrapper = new Div(upload);
-        uploadWrapper.getStyle()
-                .set("width", "100%")
-                .set("margin-bottom", "var(--lumo-space-m)");
-
-        // Grid de entregas
-        gridEntregas.addColumn(Entrega::getNombreArchivo).setHeader("Archivo").setAutoWidth(true);
-        gridEntregas.addColumn(e -> e.getFechaHora().toString()).setHeader("Fecha y hora").setAutoWidth(true);
-        gridEntregas.setItems(entregaService.listarPorEquipo(equipoActual.getId()));
-        gridEntregas.setWidthFull();
-        gridEntregas.setHeight("40vh");
-
-        Button eliminar = new Button("Eliminar entrega seleccionada", e -> {
-            Entrega seleccionada = gridEntregas.asSingleSelect().getValue();
-            if (seleccionada != null) {
-                entregaService.eliminar(seleccionada.getId());
-                Notification.show("Entrega eliminada", 2500, Notification.Position.BOTTOM_CENTER);
-                refrescarEntregas();
-            }
-        });
-
-        HorizontalLayout acciones = new HorizontalLayout(eliminar);
-        acciones.setSpacing(true);
-
-        entregasLayout.add(uploadWrapper, acciones, gridEntregas);
-    }
-
-    private void construirSeccionAuditorias() {
-        auditoriasLayout.setWidthFull();
-        auditoriasLayout.setSpacing(true);
-
-        auditoriasLayout.add(new H3("Auditorías programadas"));
-
-        // Placeholder: más adelante lo conectamos a AuditoriaService/Repo
-        Paragraph vacio = new Paragraph(
-                "Aún no hay auditorías programadas para este equipo. " +
-                        "Cuando estén disponibles, las verás listadas aquí."
+        Paragraph sub = new Paragraph(
+                (equipo == null)
+                        ? "Sin equipo asignado"
+                        : "Equipo N° " + equipo.getNumero() + " — " + equipo.getNombre() +
+                        (equipo.getAuditor() != null ? " — Auditor: " + equipo.getAuditor() : "")
         );
-        vacio.getStyle().set("color", "var(--lumo-secondary-text-color)");
+        sub.getStyle().set("color", "#666");
 
-        auditoriasLayout.add(vacio);
+        VerticalLayout box = new VerticalLayout(titulo, sub);
+        box.setPadding(false);
+        box.setSpacing(false);
+        return box;
     }
 
-    private void refrescarEntregas() {
-        gridEntregas.setItems(entregaService.listarPorEquipo(equipoActual.getId()));
+    private Component buildActionButtons(Equipo equipo) {
+        HorizontalLayout contenedor = new HorizontalLayout();
+        contenedor.setWidthFull();
+        contenedor.setJustifyContentMode(JustifyContentMode.START);
+        contenedor.setSpacing(true);
+        contenedor.getStyle().set("flex-wrap", "wrap");
+
+        contenedor.add(createBigCard(
+                VaadinIcon.UPLOAD, "Entregas", "#9C27B0",
+                () -> {
+                    if (equipo == null) {
+                        Notification.show("Asignate a un equipo para ver sus entregas.",
+                                3000, Notification.Position.MIDDLE);
+                        return;
+                    }
+                    auditoriasSection.setVisible(false);
+                    entregasSection.setVisible(true);
+                }
+        ));
+
+        contenedor.add(createBigCard(
+                VaadinIcon.CLIPBOARD_CHECK, "Auditorías", "#03A9F4",
+                () -> {
+                    if (equipo == null) {
+                        Notification.show("Asignate a un equipo para ver sus auditorías.",
+                                3000, Notification.Position.MIDDLE);
+                        return;
+                    }
+                    entregasSection.setVisible(false);
+                    auditoriasSection.setVisible(true);
+                }
+        ));
+
+        return contenedor;
     }
 
-    private Button crearBotonAtajo(String texto, VaadinIcon icono, String ruta) {
-        Button b = new Button(texto, new Icon(icono));
-        b.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_LARGE);
-        b.addClickListener(e -> getUI().ifPresent(ui -> ui.navigate(ruta)));
-        return b;
+    private Component createBigCard(VaadinIcon icono, String texto, String colorFondo, Runnable onClick) {
+        Icon icon = icono.create();
+        icon.setColor("white");
+        icon.setSize("40px");
+
+        Div fondoIcono = new Div(icon);
+        fondoIcono.getStyle()
+                .set("background-color", colorFondo)
+                .set("width", "110px")
+                .set("height", "110px")
+                .set("display", "flex")
+                .set("align-items", "center")
+                .set("justify-content", "center")
+                .set("border-radius", "14px")
+                .set("box-shadow", "2px 2px 8px rgba(0,0,0,0.25)")
+                .set("cursor", "pointer")
+                .set("transition", "transform 0.18s ease-in-out");
+
+        fondoIcono.getElement().addEventListener("mouseenter", e -> fondoIcono.getStyle().set("transform", "scale(1.05)"));
+        fondoIcono.getElement().getStyle().set("margin-right", "18px");
+        fondoIcono.getElement().getStyle().set("margin-bottom", "14px");
+        fondoIcono.getElement().addEventListener("mouseleave", e -> fondoIcono.getStyle().set("transform", "scale(1)"));
+        fondoIcono.addClickListener(e -> onClick.run());
+
+        Paragraph etiqueta = new Paragraph(texto);
+        etiqueta.getStyle()
+                .set("margin", "10px 0 0 0")
+                .set("font-weight", "600")
+                .set("color", "#555")
+                .set("font-size", "15px")
+                .set("text-align", "center");
+
+        VerticalLayout card = new VerticalLayout(fondoIcono, etiqueta);
+        card.setAlignItems(Alignment.CENTER);
+        card.setPadding(false);
+        card.setSpacing(false);
+        return card;
     }
 
-    @Override
-    protected void onAttach(AttachEvent attachEvent) {
-        // Por si el usuario reabre la vista, refrescamos la grilla de entregas
-        if (equipoActual != null) {
-            refrescarEntregas();
+    // ===================== ENTREGAS =====================
+
+    private void buildEntregasSection(Equipo equipo) {
+        entregasSection.setWidthFull();
+        entregasSection.setPadding(true);
+        entregasSection.setSpacing(true);
+        entregasSection.getStyle().set("background", "var(--lumo-base-color)");
+        entregasSection.getStyle().set("border-radius", "12px");
+        entregasSection.getStyle().set("box-shadow", "0 2px 8px rgba(0,0,0,0.06)");
+
+        H3 titulo = new H3("Entregas del equipo por sección");
+        titulo.getStyle().set("margin-top", "0");
+        entregasSection.add(titulo);
+
+        if (equipo == null) {
+            entregasSection.add(new Paragraph("No tenés equipo asignado. No es posible subir entregas."));
+            return;
         }
+
+        List<Seccion> secciones = seccionRepo.findAll();
+        if (secciones == null || secciones.isEmpty()) {
+            entregasSection.add(new Paragraph("Aún no hay secciones de entrega creadas por cátedra."));
+            return;
+        }
+
+        for (Seccion seccion : secciones) {
+            VerticalLayout sectionBox = new VerticalLayout();
+            sectionBox.setWidthFull();
+            sectionBox.setPadding(true);
+            sectionBox.setSpacing(false);
+            sectionBox.getStyle()
+                    .set("border", "1px solid var(--lumo-contrast-10pct)")
+                    .set("border-radius", "10px")
+                    .set("margin-bottom", "12px");
+
+            H4 secTitle = new H4(seccion.getTitulo());
+            secTitle.getStyle().set("margin", "0 0 6px 0");
+            if (seccion.getDescripcion() != null && !seccion.getDescripcion().isBlank()) {
+                Paragraph desc = new Paragraph(seccion.getDescripcion());
+                desc.getStyle().set("margin", "0 0 12px 0").set("color", "#666");
+                sectionBox.add(secTitle, desc);
+            } else {
+                sectionBox.add(secTitle);
+            }
+
+            List<ZonaEntrega> zonas = seccion.getZonasDeEntrega();
+            if (zonas == null || zonas.isEmpty()) {
+                sectionBox.add(new Paragraph("No hay zonas de entrega en esta sección."));
+            } else {
+                for (ZonaEntrega zona : zonas) {
+                    sectionBox.add(buildZonaUploader(zona));
+                }
+            }
+
+            entregasSection.add(sectionBox);
+        }
+    }
+
+    private Component buildZonaUploader(ZonaEntrega zona) {
+        VerticalLayout box = new VerticalLayout();
+        box.setPadding(false);
+        box.setSpacing(false);
+        box.setWidthFull();
+
+        String fecha = (zona.getFechaCierre() != null) ? " (vence: " + zona.getFechaCierre() + ")" : "";
+        H5 title = new H5("Zona: " + zona.getTitulo() + fecha);
+        title.getStyle().set("margin", "0 0 6px 0");
+
+        MultiFileMemoryBuffer buffer = new MultiFileMemoryBuffer();
+        Upload upload = new Upload(buffer);
+        upload.setDropLabel(new Span("Arrastrar o seleccionar archivos aquí"));
+        upload.setMaxFiles(5);
+        upload.setWidthFull();
+        upload.getElement().getStyle().set("min-height", "140px");
+        upload.getElement().getStyle().set("border", "1px dashed var(--lumo-contrast-30pct)");
+        upload.getElement().getStyle().set("border-radius", "10px");
+        upload.getElement().getStyle().set("padding", "14px");
+        upload.setAcceptedFileTypes(".pdf", ".docx", ".jpg", ".png", ".zip");
+
+        if (zona.getFechaCierre() != null && zona.getFechaCierre().isBefore(LocalDate.now())) {
+            upload.setEnabled(false);
+            Paragraph closedMsg = new Paragraph("La fecha de entrega para esta zona ha finalizado.");
+            closedMsg.getStyle().set("color", "#b00020");
+            box.add(title, closedMsg);
+            return box;
+        }
+
+        upload.addFinishedListener(e -> {
+            String nombreArchivo = e.getFileName();
+            InputStream is = buffer.getInputStream(nombreArchivo);
+            Usuario autor = securityService.getAuthenticatedUser();
+
+            Entrega nueva = new Entrega(nombreArchivo, LocalDateTime.now(), zona, autor);
+            entregaService.registrarEntrega(nueva);
+
+            String mensaje = "📩 " + (autor.getNombre() != null ? autor.getNombre() : autor.getEmail())
+                    + " subió " + nombreArchivo + " en \"" + zona.getTitulo() + "\"";
+            notificacionService.agregarNotificacion(mensaje);
+
+            Notification.show("Archivo '" + nombreArchivo + "' subido correctamente.",
+                    3500, Notification.Position.BOTTOM_CENTER);
+        });
+
+        box.add(title, upload);
+        return box;
+    }
+
+    // ===================== AUDITORÍAS =====================
+
+    private void buildAuditoriasSection(Equipo equipo) {
+        auditoriasSection.setWidthFull();
+        auditoriasSection.setPadding(true);
+        auditoriasSection.setSpacing(true);
+        auditoriasSection.getStyle().set("background", "var(--lumo-base-color)");
+        auditoriasSection.getStyle().set("border-radius", "12px");
+        auditoriasSection.getStyle().set("box-shadow", "0 2px 8px rgba(0,0,0,0.06)");
+
+        H3 titulo = new H3("Auditorías del equipo");
+        titulo.getStyle().set("margin-top", "0");
+        auditoriasSection.add(titulo);
+
+        if (equipo == null) {
+            auditoriasSection.add(new Paragraph("No tenés equipo asignado."));
+            return;
+        }
+
+        Paragraph empty = new Paragraph("Próximas auditorías del equipo aparecerán aquí.");
+        empty.getStyle().set("color", "#666");
+        auditoriasSection.add(empty);
     }
 }
