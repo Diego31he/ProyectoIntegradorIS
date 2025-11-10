@@ -14,14 +14,14 @@ import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.upload.FinishedEvent; // <-- IMPORT NUEVO
+import com.vaadin.flow.component.upload.FinishedEvent;
 import com.vaadin.flow.component.upload.Upload;
-import com.vaadin.flow.component.upload.receivers.MultiFileMemoryBuffer; // <-- IMPORT MODERNO
+import com.vaadin.flow.component.upload.receivers.MultiFileMemoryBuffer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
 
-import java.io.InputStream; // <-- IMPORT NUEVO
+import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -59,7 +59,10 @@ public class EntregasView extends VerticalLayout {
 
             List<ZonaEntrega> zonas = seccion.getZonasDeEntrega();
 
-            if (zonas.isEmpty()) {
+            // --- INICIO DE LA CORRECCIÓN ---
+            // Comprobamos si la lista es nula ANTES de usarla
+            if (zonas == null || zonas.isEmpty()) {
+                // --- FIN DE LA CORRECCIÓN ---
                 zonasLayout.add(new Span("No hay zonas de entrega disponibles en esta sección."));
             } else {
                 for (ZonaEntrega zona : zonas) {
@@ -84,11 +87,8 @@ public class EntregasView extends VerticalLayout {
 
         layout.add(new H3(titulo + fechaCierre));
 
-        // --- INICIO DE CORRECCIÓN API MODERNA ---
         MultiFileMemoryBuffer buffer = new MultiFileMemoryBuffer();
         Upload upload = new Upload(buffer);
-        // --- FIN DE CORRECCIÓN API MODERNA ---
-
         upload.setAcceptedFileTypes(".pdf", ".docx", ".jpg", ".png", ".zip");
         upload.setDropLabel(new Span("Arrastrar archivo aquí"));
 
@@ -97,12 +97,8 @@ public class EntregasView extends VerticalLayout {
             layout.add(new Span("La fecha de entrega para esta zona ha finalizado."));
         }
 
-        // --- INICIO DE CORRECCIÓN API MODERNA ---
-        // Se usa addFinishedListener (el método moderno)
         upload.addFinishedListener(event -> {
             String nombreArchivo = event.getFileName();
-
-            // Obtenemos el InputStream del buffer usando el nombre del archivo
             InputStream inputStream = buffer.getInputStream(nombreArchivo);
 
             Usuario autor = securityService.getAuthenticatedUser();
@@ -114,7 +110,6 @@ public class EntregasView extends VerticalLayout {
             notificacionService.agregarNotificacion(mensaje);
             Notification.show("Entrega '" + nombreArchivo + "' subida con éxito.", 4000, Notification.Position.BOTTOM_CENTER);
         });
-        // --- FIN DE CORRECCIÓN API MODERNA ---
 
         layout.add(upload);
         return layout;
