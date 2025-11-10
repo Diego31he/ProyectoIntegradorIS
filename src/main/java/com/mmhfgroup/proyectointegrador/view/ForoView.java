@@ -17,6 +17,7 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import jakarta.annotation.security.PermitAll;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -24,6 +25,7 @@ import java.util.List;
 
 @PageTitle("Foro de Consultas")
 @Route(value = "foro", layout = EstudianteLayout.class)
+@PermitAll
 public class ForoView extends HorizontalLayout {
 
     private final ForoService servicio = new ForoService();

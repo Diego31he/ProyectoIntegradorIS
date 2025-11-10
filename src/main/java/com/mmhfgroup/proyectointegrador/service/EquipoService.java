@@ -1,34 +1,50 @@
 package com.mmhfgroup.proyectointegrador.service;
 
 import com.mmhfgroup.proyectointegrador.model.Equipo;
+import com.mmhfgroup.proyectointegrador.model.Estudiante;
+import com.mmhfgroup.proyectointegrador.repository.EquipoRepository;
+import com.mmhfgroup.proyectointegrador.repository.EstudianteRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
+@Service
 public class EquipoService {
 
-    // Lista estática compartida entre todas las vistas
-    private static final List<Equipo> equipos = new ArrayList<>();
-    private static int contador = 1;
+    private final EquipoRepository equipoRepo;
+    private final EstudianteRepository estudianteRepo;
 
-    // Devuelve una vista de solo lectura
+    public EquipoService(EquipoRepository equipoRepo, EstudianteRepository estudianteRepo) {
+        this.equipoRepo = equipoRepo;
+        this.estudianteRepo = estudianteRepo;
+    }
+
+    @Transactional(readOnly = true)
     public List<Equipo> listarEquipos() {
-        return Collections.unmodifiableList(equipos);
+        return equipoRepo.findAllByOrderByNumeroAsc();
     }
 
-    public void agregarEquipo(String nombre, String auditor) {
-        Equipo nuevo = new Equipo(contador++, nombre, auditor);
-        equipos.add(nuevo);
+    @Transactional
+    public Equipo crearEquipo(Integer numero, String nombre, String auditor) {
+        Equipo e = new Equipo(numero, nombre, auditor);
+        return equipoRepo.save(e);
     }
 
-    public void eliminarEquipo(Equipo equipo) {
-        equipos.remove(equipo);
+    @Transactional
+    public void eliminarEquipo(Long id) {
+        equipoRepo.deleteById(id);
     }
 
-    // Método opcional para limpiar todo (por ejemplo, al cerrar sesión)
-    public void limpiarEquipos() {
-        equipos.clear();
-        contador = 1;
+    @Transactional(readOnly = true)
+    public Integer proximoNumero() {
+        return equipoRepo.findTopByOrderByNumeroDesc()
+                .map(eq -> eq.getNumero() + 1)
+                .orElse(1);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Estudiante> integrantesDe(Long equipoId) {
+        return estudianteRepo.findByEquipo_IdOrderByApellidoAscNombreAsc(equipoId);
     }
 }

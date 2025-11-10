@@ -1,29 +1,36 @@
 package com.mmhfgroup.proyectointegrador.service;
 
 import com.mmhfgroup.proyectointegrador.model.Entrega;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import com.mmhfgroup.proyectointegrador.model.Equipo;
 import com.mmhfgroup.proyectointegrador.repository.EntregaRepository;
 import org.springframework.stereotype.Service;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 
-@Service // <-- 1. Marcar como Servicio de Spring
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Service
 public class EntregaService {
 
-    // 2. Inyectar el repositorio
-    @Autowired
-    private EntregaRepository repository;
+    private final EntregaRepository entregaRepo;
 
-    public List<Entrega> listarEntregas() {
-        return repository.findAll(); // <-- 3. Usar el repositorio
+    public EntregaService(EntregaRepository entregaRepo) {
+        this.entregaRepo = entregaRepo;
     }
 
-    public void registrarEntrega(Entrega entrega) {
-        repository.save(entrega); // <-- 3. Usar el repositorio
+    @Transactional
+    public Entrega registrarEntrega(Equipo equipo, String nombreArchivo) {
+        Entrega e = new Entrega(nombreArchivo, LocalDateTime.now(), equipo);
+        return entregaRepo.save(e);
     }
 
-    public void eliminarEntrega(Entrega entrega) {
-        repository.delete(entrega); // <-- 3. Usar el repositorio
+    @Transactional(readOnly = true)
+    public List<Entrega> listarPorEquipo(Long equipoId) {
+        return entregaRepo.findByEquipoIdOrderByFechaHoraDesc(equipoId);
+    }
+
+    @Transactional
+    public void eliminar(Long entregaId) {
+        entregaRepo.deleteById(entregaId);
     }
 }

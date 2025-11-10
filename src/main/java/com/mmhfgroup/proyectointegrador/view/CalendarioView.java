@@ -15,9 +15,11 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import jakarta.annotation.security.PermitAll;
 
 @PageTitle("Calendario")
 @Route(value = "calendario", layout = EstudianteLayout.class)
+@PermitAll
 public class CalendarioView extends VerticalLayout {
 
     private final CalendarioService servicio = new CalendarioService();

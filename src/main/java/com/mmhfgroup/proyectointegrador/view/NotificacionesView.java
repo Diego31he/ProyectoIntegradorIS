@@ -7,9 +7,11 @@ import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import jakarta.annotation.security.PermitAll;
 
 @PageTitle("Notificaciones")
 @Route(value = "notificaciones", layout = EstudianteLayout.class)
+@PermitAll
 public class NotificacionesView extends VerticalLayout {
 
     private final NotificacionService servicio = new NotificacionService();

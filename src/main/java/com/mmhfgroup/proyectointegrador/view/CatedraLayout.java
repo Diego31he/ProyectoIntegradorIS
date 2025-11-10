@@ -20,16 +20,12 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.RouterLink;
 import com.vaadin.flow.theme.lumo.LumoUtility;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
-import com.vaadin.flow.spring.security.AuthenticationContext;
+import jakarta.annotation.security.RolesAllowed;
 
+@RolesAllowed({"ROLE_CATEDRA","ROLE_ADMIN"})
 public class CatedraLayout extends AppLayout {
 
-    private final AuthenticationContext auth;
-
-    public CatedraLayout(AuthenticationContext auth) {
-        this.auth = auth;
+    public CatedraLayout() {
         createHeader();
         createDrawer();
     }
@@ -52,27 +48,11 @@ public class CatedraLayout extends AppLayout {
         textos.setSpacing(false);
         textos.setAlignItems(Alignment.START);
 
-        // === Botón "Volver a mi vista" solo para ADMIN ===
-        boolean isAdmin = SecurityContextHolder.getContext()
-                .getAuthentication()
-                .getAuthorities()
-                .stream()
-                .map(GrantedAuthority::getAuthority)
-                .anyMatch("ROLE_ADMIN"::equals);
-
-        Button backToMyView = new Button("Volver a mi vista", e -> {
-            // Te lleva al home real según tu rol (admin -> admin/dashboard)
-            ViewModeUtil.goToHomeForCurrentRole();
-        });
-        backToMyView.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
-        backToMyView.setVisible(isAdmin);
-
-        Button logout = new Button("Salir", e -> auth.logout()); // <--- CAMBIO
+        Button logout = new Button("Salir", e -> getUI().ifPresent(ui -> ui.getPage().setLocation("/logout")));
         logout.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
         logout.getStyle().set("color", "white");
-        logout.setPrefixComponent(new Icon(VaadinIcon.SIGN_OUT));
 
-        HorizontalLayout header = new HorizontalLayout(toggle, logo, textos, backToMyView, logout);
+        HorizontalLayout header = new HorizontalLayout(toggle, logo, textos, logout);
         header.setDefaultVerticalComponentAlignment(Alignment.CENTER);
         header.expand(textos);
         header.setWidthFull();
@@ -90,7 +70,9 @@ public class CatedraLayout extends AppLayout {
         menu.addClassNames(LumoUtility.Padding.MEDIUM);
         menu.setSizeFull();
 
+        // --- Navegación Cátedra ---
         VerticalLayout navLinks = new VerticalLayout(
+                new RouterLink("Inicio", CatedraHomeView.class),       // <--- ahora va a la nueva pantalla
                 new RouterLink("Equipos", EquiposView.class),
                 new RouterLink("Entregas (Cátedra)", EntregasView.class),
                 new RouterLink("Calendario", CalendarioView.class),
@@ -100,9 +82,10 @@ public class CatedraLayout extends AppLayout {
         navLinks.setPadding(false);
         navLinks.setSpacing(false);
 
+        // Botón "Ver como Estudiante"
         Button verComoEst = new Button("Ver como Estudiante", e -> {
             ViewModeUtil.enableViewAsStudent();
-            UI.getCurrent().navigate(""); // Home Estudiante
+            UI.getCurrent().navigate(""); // MainView estudiantes
         });
         verComoEst.setPrefixComponent(new Icon(VaadinIcon.EYE));
         verComoEst.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_CONTRAST);

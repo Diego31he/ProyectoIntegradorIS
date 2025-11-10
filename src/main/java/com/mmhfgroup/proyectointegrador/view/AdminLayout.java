@@ -66,8 +66,9 @@ public class AdminLayout extends AppLayout {
 
         // Menú Admin
         menu.add(
-                new RouterLink("Dashboard", AdminDashboardView.class),
-                new RouterLink("Importar Datos", AdminImportView.class)
+                new RouterLink("Inicio", AdminDashboardView.class),
+                new RouterLink("Importar Datos", AdminImportView.class),
+                new RouterLink("Usuarios", AdminUsuariosView.class)
         );
 
         // Ver como Cátedra / Estudiante

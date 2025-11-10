@@ -1,27 +1,30 @@
 package com.mmhfgroup.proyectointegrador.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
-import jakarta.persistence.Inheritance;
-import jakarta.persistence.InheritanceType;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 
 @Entity
-@Table(name = "usuarios") // La tabla base se llamará 'usuarios'
-@Inheritance(strategy = InheritanceType.JOINED) // Esta es la magia
+@Table(
+        name = "usuarios",
+        indexes = {
+                @Index(name = "idx_usuario_email", columnList = "email", unique = true)
+        }
+)
+@Inheritance(strategy = InheritanceType.JOINED)
 public abstract class Usuario {
 
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(nullable = false, updatable = false)
     private Long id;
 
-    private String nombre;
-    private String apellido;
-    private String email;
-    private String password; // En un futuro, esto debería ir encriptado
+    @Column(nullable = false)  private String nombre;
+    @Column(nullable = false)  private String apellido;
 
-    // --- Constructores, Getters y Setters ---
+    @Column(nullable = false, unique = true, length = 190)
+    private String email;
+
+    @Column(nullable = false)
+    private String password; // Debe almacenarse encriptada (BCrypt)
 
     public Usuario() {}
 
@@ -32,43 +35,19 @@ public abstract class Usuario {
         this.password = password;
     }
 
-    public Long getId() {
-        return id;
-    }
+    // Getters / Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    public String getNombre() { return nombre; }
+    public void setNombre(String nombre) { this.nombre = nombre; }
 
-    public String getNombre() {
-        return nombre;
-    }
+    public String getApellido() { return apellido; }
+    public void setApellido(String apellido) { this.apellido = apellido; }
 
-    public void setNombre(String nombre) {
-        this.nombre = nombre;
-    }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
-    public String getApellido() {
-        return apellido;
-    }
-
-    public void setApellido(String apellido) {
-        this.apellido = apellido;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
 }
