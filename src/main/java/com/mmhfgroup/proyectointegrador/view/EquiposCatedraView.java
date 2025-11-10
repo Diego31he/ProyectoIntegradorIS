@@ -1,10 +1,14 @@
 package com.mmhfgroup.proyectointegrador.view;
 
+import com.mmhfgroup.proyectointegrador.model.Catedra; // <-- AÑADIDO
 import com.mmhfgroup.proyectointegrador.model.Equipo;
 import com.mmhfgroup.proyectointegrador.model.Estudiante;
+import com.mmhfgroup.proyectointegrador.model.Usuario;
+import com.mmhfgroup.proyectointegrador.repository.CatedraRepository; // <-- AÑADIDO
 import com.mmhfgroup.proyectointegrador.service.EquipoService;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.combobox.MultiSelectComboBox;
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.dialog.Dialog;
@@ -37,15 +41,20 @@ import java.util.stream.Collectors;
 @RolesAllowed({"CATEDRA", "ADMIN"})
 public class EquiposCatedraView extends VerticalLayout {
 
-    // ... (El constructor y los botones se mantienen igual) ...
-
     private final EquipoService equipoService;
+    // --- INICIO DE CORRECCIÓN ---
+    // Cambiamos UsuarioRepository por CatedraRepository
+    private final CatedraRepository catedraRepository;
+    // --- FIN DE CORRECCIÓN ---
     private final Grid<Equipo> grid = new Grid<>(Equipo.class);
     private Equipo equipoSeleccionado;
 
     @Autowired
-    public EquiposCatedraView(EquipoService equipoService) {
+    public EquiposCatedraView(EquipoService equipoService, CatedraRepository catedraRepository) { // <-- Corregido
         this.equipoService = equipoService;
+        this.catedraRepository = catedraRepository; // <-- Corregido
+
+        // ... (El resto del constructor se mantiene igual) ...
         setSizeFull();
         setPadding(true);
         setSpacing(true);
@@ -64,37 +73,32 @@ public class EquiposCatedraView extends VerticalLayout {
         add(grid);
     }
 
-    // --- INICIO DE CORRECCIÓN (Error 1) ---
-    // Función helper para obtener el nombre completo de forma segura
-    private String getNombreCompletoEstudiante(Estudiante est) {
-        String nombre = (est.getNombre() == null) ? "" : est.getNombre();
-        String apellido = (est.getApellido() == null) ? "" : est.getApellido();
-        return (nombre + " " + apellido).trim();
+    private String getNombreCompletoUsuario(Usuario u) {
+        // ... (Se mantiene igual) ...
+        if (u == null) return "";
+        String nombre = (u.getNombre() == null) ? "" : u.getNombre();
+        String apellido = (u.getApellido() == null) ? "" : u.getApellido();
+        String nombreCompleto = (nombre + " " + apellido).trim();
+        return nombreCompleto.isEmpty() ? u.getEmail() : nombreCompleto;
     }
-    // --- FIN DE CORRECCIÓN ---
 
     private void configurarGrid(Button btnEditar, Button btnEliminar) {
+        // ... (Se mantiene igual) ...
         grid.removeAllColumns();
         grid.setSizeFull();
-
         grid.addColumn(Equipo::getNumero).setHeader("Nro").setFlexGrow(0).setWidth("80px");
         grid.addColumn(Equipo::getNombre).setHeader("Nombre del Equipo").setFlexGrow(1);
         grid.addColumn(Equipo::getAuditor).setHeader("Auditor Asignado").setFlexGrow(1);
-
         grid.addColumn(new ComponentRenderer<>(equipo -> {
             Set<Estudiante> integrantes = equipo.getIntegrantes();
             if (integrantes == null || integrantes.isEmpty()) {
                 return new Span("Sin integrantes");
             }
-            // --- INICIO DE CORRECCIÓN (Error 2) ---
-            // Usamos la función helper segura
             String integrantesStr = integrantes.stream()
-                    .map(this::getNombreCompletoEstudiante)
+                    .map(this::getNombreCompletoUsuario)
                     .collect(Collectors.joining(", "));
-            // --- FIN DE CORRECCIÓN ---
             return new Span(integrantesStr);
         })).setHeader("Integrantes").setFlexGrow(2);
-
         grid.asSingleSelect().addValueChangeListener(event -> {
             equipoSeleccionado = event.getValue();
             boolean seleccionado = (equipoSeleccionado != null);
@@ -103,14 +107,15 @@ public class EquiposCatedraView extends VerticalLayout {
         });
     }
 
-    // ... (El resto de la clase principal se mantiene igual) ...
     private void actualizarGrid() {
+        // ... (Se mantiene igual) ...
         grid.setItems(equipoService.findAll());
         grid.asSingleSelect().clear();
         equipoSeleccionado = null;
     }
 
     private void crearEquipo() {
+        // ... (Se mantiene igual) ...
         try {
             Equipo nuevoEquipo = equipoService.crearEquipoSiguiente();
             Notification.show("Equipo " + nuevoEquipo.getNumero() + " creado.", 3000, Notification.Position.BOTTOM_CENTER)
@@ -120,6 +125,7 @@ public class EquiposCatedraView extends VerticalLayout {
         } catch (Exception e) {
             Notification.show("Error al crear equipo: " + e.getMessage(), 4000, Notification.Position.BOTTOM_CENTER)
                     .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            e.printStackTrace(); // Imprime el error real en la consola
         }
     }
 
@@ -127,8 +133,11 @@ public class EquiposCatedraView extends VerticalLayout {
         if (equipo == null) {
             return;
         }
-        // Pasamos la lógica para obtener nombres al diálogo
-        EquipoEditDialog dialog = new EquipoEditDialog(equipo, equipoService, this::getNombreCompletoEstudiante);
+        // --- INICIO DE CORRECCIÓN ---
+        // Pasamos el repositorio de CATEDRA
+        EquipoEditDialog dialog = new EquipoEditDialog(equipo, equipoService, catedraRepository, this::getNombreCompletoUsuario);
+        // --- FIN DE CORRECCIÓN ---
+
         dialog.open();
 
         dialog.addOpenedChangeListener(e -> {
@@ -139,6 +148,7 @@ public class EquiposCatedraView extends VerticalLayout {
     }
 
     private void confirmarEliminacion(Equipo equipo) {
+        // ... (Se mantiene igual) ...
         if (equipo == null) return;
         ConfirmDialog dialog = new ConfirmDialog();
         dialog.setHeader("Confirmar eliminación");
@@ -152,6 +162,7 @@ public class EquiposCatedraView extends VerticalLayout {
     }
 
     private void eliminarEquipo(Equipo equipo) {
+        // ... (Se mantiene igual) ...
         try {
             equipoService.deleteEquipo(equipo.getId());
             Notification.show("Equipo eliminado.", 3000, Notification.Position.BOTTOM_CENTER)
@@ -170,23 +181,34 @@ public class EquiposCatedraView extends VerticalLayout {
 class EquipoEditDialog extends Dialog {
 
     private final EquipoService equipoService;
+    // --- INICIO DE CORRECCIÓN ---
+    private final CatedraRepository catedraRepository;
+    // --- FIN DE CORRECCIÓN ---
     private Equipo equipo;
     private final Binder<Equipo> binder = new Binder<>(Equipo.class);
 
     private final TextField nombre = new TextField("Nombre del Equipo");
-    private final TextField auditor = new TextField("Auditor");
+
+    // --- INICIO DE CORRECCIÓN ---
+    // El ComboBox ahora es de tipo Catedra, no Usuario
+    private final ComboBox<Catedra> auditor = new ComboBox<>("Auditor (Docente)");
+    // --- FIN DE CORRECCIÓN ---
+
     private final MultiSelectComboBox<Estudiante> integrantes = new MultiSelectComboBox<>("Integrantes Actuales (desmarca para eliminar)");
     private final MultiSelectComboBox<Estudiante> estudiantesSinEquipo = new MultiSelectComboBox<>("Estudiantes sin equipo (marca para agregar)");
 
-    // Interfaz funcional para pasar la lógica de 'getNombreCompleto'
     @FunctionalInterface
-    interface EstudianteLabelGenerator {
-        String apply(Estudiante estudiante);
+    interface UsuarioLabelGenerator {
+        String apply(Usuario usuario);
     }
 
-    public EquipoEditDialog(Equipo equipo, EquipoService equipoService, EstudianteLabelGenerator labelGenerator) {
+    public EquipoEditDialog(Equipo equipo,
+                            EquipoService equipoService,
+                            CatedraRepository catedraRepository, // <-- Corregido
+                            UsuarioLabelGenerator labelGenerator) {
         this.equipo = equipo;
         this.equipoService = equipoService;
+        this.catedraRepository = catedraRepository; // <-- Corregido
 
         setHeaderTitle("Editando Equipo " + equipo.getNumero());
         setWidth("600px");
@@ -197,13 +219,28 @@ class EquipoEditDialog extends Dialog {
         binder.bind(nombre, Equipo::getNombre, Equipo::setNombre);
         nombre.setWidth("100%");
 
-        binder.bind(auditor, Equipo::getAuditor, Equipo::setAuditor);
-        auditor.setWidth("100%");
+        // --- INICIO DE CORRECCIÓN ---
 
-        // --- INICIO DE CORRECCIÓN (Error 3) ---
-        // Pasamos el 'labelGenerator' a la configuración de los ComboBox
-        configurarSeleccionIntegrantes(labelGenerator);
+        auditor.setWidth("100%");
+        // Usamos el CatedraRepository para buscar TODOS los Catedra
+        List<Catedra> docentes = catedraRepository.findAll();
+        auditor.setItems(docentes);
+        auditor.setItemLabelGenerator(labelGenerator::apply);
+
+        // Pre-seleccionar el auditor actual
+        String nombreAuditorActual = equipo.getAuditor();
+        if (nombreAuditorActual != null && !nombreAuditorActual.isBlank()) {
+            for (Catedra docente : docentes) {
+                if (nombreAuditorActual.equals(labelGenerator.apply(docente))) {
+                    auditor.setValue(docente);
+                    break;
+                }
+            }
+        }
+
         // --- FIN DE CORRECCIÓN ---
+
+        configurarSeleccionIntegrantes(labelGenerator);
 
         layout.add(nombre, auditor, integrantes, new H3("Agregar Estudiantes"), estudiantesSinEquipo);
 
@@ -214,63 +251,72 @@ class EquipoEditDialog extends Dialog {
         add(layout);
     }
 
-    private void configurarSeleccionIntegrantes(EstudianteLabelGenerator labelGenerator) {
+    private void configurarSeleccionIntegrantes(UsuarioLabelGenerator labelGenerator) {
+        // ... (Se mantiene igual) ...
         Set<Estudiante> integrantesActuales = equipo.getIntegrantes() != null ?
                 new HashSet<>(equipo.getIntegrantes()) :
                 Collections.emptySet();
-
         integrantes.setItems(integrantesActuales);
         integrantes.setValue(integrantesActuales);
-        // Usamos el 'labelGenerator' seguro
         integrantes.setItemLabelGenerator(labelGenerator::apply);
         integrantes.setWidth("100%");
-
         List<Estudiante> sinEquipo = equipoService.findEstudiantesSinEquipo();
         estudiantesSinEquipo.setItems(sinEquipo);
-        // Usamos el 'labelGenerator' seguro
         estudiantesSinEquipo.setItemLabelGenerator(labelGenerator::apply);
         estudiantesSinEquipo.setWidth("100%");
     }
 
     private void guardarCambios() {
         try {
-            // 1. Guardar Nombre y Auditor
             binder.writeBean(equipo);
-            equipoService.guardar(equipo); // <-- Esto funciona
 
-            // 2. Actualizar integrantes
+            // --- INICIO DE CORRECCIÓN ---
+            // Guardar Auditor (manualmente)
+            Catedra docenteSeleccionado = auditor.getValue(); // <-- Es de tipo Catedra
+            if (docenteSeleccionado != null) {
+                equipo.setAuditor(getNombreCompletoUsuario(docenteSeleccionado));
+            } else {
+                equipo.setAuditor(null);
+            }
+            // --- FIN DE CORRECCIÓN ---
+
+            equipoService.guardar(equipo);
+
+            // ... (Lógica de integrantes se mantiene igual) ...
             Set<Estudiante> integrantesDeseados = integrantes.getValue();
             Set<Estudiante> integrantesParaAgregar = estudiantesSinEquipo.getValue();
             integrantesDeseados.addAll(integrantesParaAgregar);
-
             Set<Estudiante> integrantesOriginales = equipo.getIntegrantes() != null ?
                     new HashSet<>(equipo.getIntegrantes()) :
                     Collections.emptySet();
-
-            // (A) Desasignar
             for (Estudiante estOriginal : integrantesOriginales) {
                 if (!integrantesDeseados.contains(estOriginal)) {
                     equipoService.quitarEquipoDeEstudiante(estOriginal.getId());
                 }
             }
-
-            // (B) Asignar
             for (Estudiante estNuevo : integrantesDeseados) {
                 if (estNuevo.getEquipo() == null || !estNuevo.getEquipo().getId().equals(equipo.getId())) {
                     equipoService.asignarEstudianteAEquipo(estNuevo.getId(), equipo.getId());
                 }
             }
 
-            // Si todo sale bien, esta es la notificación que verás:
             Notification.show("Equipo guardado", 3000, Notification.Position.BOTTOM_CENTER)
                     .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             close();
 
         } catch (Exception e) {
-            // Si algo falla (incluso el NPE que corregimos), verás esto
             Notification.show("Error al guardar: " + e.getMessage(), 4000, Notification.Position.BOTTOM_CENTER)
                     .addThemeVariants(NotificationVariant.LUMO_ERROR);
             e.printStackTrace();
         }
+    }
+
+    private String getNombreCompletoUsuario(Usuario u) {
+        // ... (Se mantiene igual) ...
+        if (u == null) return "";
+        String nombre = (u.getNombre() == null) ? "" : u.getNombre();
+        String apellido = (u.getApellido() == null) ? "" : u.getApellido();
+        String nombreCompleto = (nombre + " " + apellido).trim();
+        return nombreCompleto.isEmpty() ? u.getEmail() : nombreCompleto;
     }
 }

@@ -11,7 +11,7 @@ import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
 
 @PageTitle("Inicio - Cátedra")
-@Route(value = "catedra", layout = CatedraLayout.class) // Ruta principal de cátedra
+@Route(value = "catedra", layout = CatedraLayout.class)
 @RolesAllowed({"CATEDRA", "ADMIN"})
 public class CatedraHomeView extends VerticalLayout {
 
@@ -26,21 +26,20 @@ public class CatedraHomeView extends VerticalLayout {
         row1.add(
                 createNavButton("Gestión de Equipos", VaadinIcon.GROUP, EquiposCatedraView.class),
                 createNavButton("Zonas de Entrega", VaadinIcon.TASKS, ZonasEntregaAdminView.class),
-                createNavButton("Ver Entregas", VaadinIcon.ARCHIVE, CatedraEntregasView.class)
-        );
+                createNavButton("Ver Entregas", VaadinIcon.ARCHIVE, CatedraEntregasView.class),
+                createNavButton("Participantes", VaadinIcon.USER, ParticipantesCatedraView.class)
 
-        // --- INICIO DE LA CORRECCIÓN ---
+        );
 
         HorizontalLayout row2 = new HorizontalLayout();
         row2.add(
-                // Apuntamos a las nuevas vistas de Cátedra
+                // --- INICIO DE CORRECCIÓN ---
+                createNavButton("Gestión Auditorías", VaadinIcon.CLIPBOARD_CHECK, AuditoriasView.class), // <-- AÑADIDO
+                // --- FIN DE CORRECCIÓN ---
                 createNavButton("Calendario Cátedra", VaadinIcon.CALENDAR, CalendarioCatedraView.class),
                 createNavButton("Mensajería", VaadinIcon.COMMENTS, MensajeriaCatedraView.class),
-                createNavButton("Notificaciones", VaadinIcon.BELL, NotificacionesCatedraView.class),
-                createNavButton("Participantes",VaadinIcon.USERS, ParticipantesCatedraView.class)
+                createNavButton("Notificaciones", VaadinIcon.BELL, NotificacionesCatedraView.class)
         );
-
-        // --- FIN DE LA CORRECCIÓN ---
 
         add(row1, row2);
     }
